@@ -2,7 +2,7 @@
 
 ## Current status
 
-The project is in planning. No application code, plugin implementation, Rust workspace, provider integration, or release tooling has been created.
+Phase 0, Repository baseline, is complete. The repository has its documented layout and contributor-facing project files. No application code, plugin implementation, Rust workspace, provider integration, or release tooling has been created.
 
 ## Completed work
 
@@ -16,6 +16,17 @@ The project is in planning. No application code, plugin implementation, Rust wor
 - Created `ROADMAP.md` with the detailed v1 delivery sequence.
 - Created this state file.
 - Updated `AGENTS.md` to make `ROADMAP.md` the mandatory step-by-step development sequence and `state.md` the required continuity record for future sessions.
+
+### 2026-09-11 — Phase 0: Repository baseline
+
+- Inspected the Git repository after the user's initial commit; the working tree was clean before this phase.
+- Added the MIT `LICENSE`.
+- Added an English `README.md` describing scope, non-goals, privacy principles, the planned layout, and the development plan.
+- Added `CONTRIBUTING.md` with English documentation, incremental-workflow, and security conventions.
+- Added `.gitignore` rules for build outputs, local environment files, secrets, temporary artifacts, and editor files.
+- Created empty tracked directories for the future Rust engine, Omarchy plugin, test fixtures, helper scripts, and CI workflows.
+- Set the MIT license copyright holder to Stéphane Depierrepont.
+- Did not add application code, dependencies, provider integrations, Omarchy plugin content, or Voxtype configuration changes.
 
 ## Decisions currently in force
 
@@ -32,13 +43,14 @@ The project is in planning. No application code, plugin implementation, Rust wor
 
 - Confirmed that the repository instructions are stored in root-level `AGENTS.md`.
 - Confirmed the documentation consists of `docs/VoxTypePersonas.md` and `docs/specs.md`.
+- Ran `git diff --check` after Phase 0; it reported no whitespace errors.
 - No implementation or runtime validation has been performed because the project is intentionally still in planning.
 
 ## Next proposed step
 
-Begin Phase 0 of `ROADMAP.md`: establish the repository baseline and proposed source layout, without implementing product behavior.
+Begin Phase 1 of `ROADMAP.md`: create the Rust workspace and define the versioned configuration and CLI contracts, without provider networking or UI work.
 
 ## Commit and push status
 
-- No commit has been created.
+- Phase 0 repository baseline committed with message `chore: establish repository baseline`.
 - No push has been performed.
