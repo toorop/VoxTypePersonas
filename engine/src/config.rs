@@ -60,6 +60,34 @@ pub struct Profile {
     pub max_input_chars: u32,
     pub max_output_tokens: u32,
     pub timeout_ms: u64,
+    #[serde(default)]
+    pub output_policy: OutputPolicy,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OutputPolicy {
+    #[serde(default = "default_reject_markdown")]
+    pub reject_markdown: bool,
+    #[serde(default = "default_reject_obvious_preambles")]
+    pub reject_obvious_preambles: bool,
+}
+
+impl Default for OutputPolicy {
+    fn default() -> Self {
+        Self {
+            reject_markdown: default_reject_markdown(),
+            reject_obvious_preambles: default_reject_obvious_preambles(),
+        }
+    }
+}
+
+const fn default_reject_markdown() -> bool {
+    true
+}
+
+const fn default_reject_obvious_preambles() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -208,6 +236,7 @@ impl Profile {
             max_input_chars: DEFAULT_MAX_INPUT_CHARS,
             max_output_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
             timeout_ms: DEFAULT_TIMEOUT_MS,
+            output_policy: OutputPolicy::default(),
         }
     }
 
@@ -220,6 +249,7 @@ impl Profile {
             max_input_chars: DEFAULT_MAX_INPUT_CHARS,
             max_output_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
             timeout_ms: DEFAULT_TIMEOUT_MS,
+            output_policy: OutputPolicy::default(),
         }
     }
 }

@@ -74,7 +74,7 @@ fn unavailable_profile_preserves_raw_output_and_keeps_input_out_of_diagnostics()
 
     let output = run_process(&root, &["process", "--profile", "chat"], input);
 
-    assert!(!output.status.success());
+    assert!(output.status.success());
     assert_eq!(output.stdout, input);
     assert!(!output.stderr.is_empty());
     assert!(!String::from_utf8_lossy(&output.stderr).contains("private dictated content"));

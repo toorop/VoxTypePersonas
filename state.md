@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0, 1, 2, and 3 are complete. The repository has its documented layout and a tested Rust workspace with versioned configuration persistence, migrations, persisted profile selection, and a byte-preserving Raw processing path. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
+Phases 0, 1, 2, 3, and 4 are complete. The repository has its documented layout and a tested Rust workspace with versioned configuration persistence, Raw processing, and centralized fallback and output-validation rules. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
 
 ## Completed work
 
@@ -70,6 +70,16 @@ Phases 0, 1, 2, and 3 are complete. The repository has its documented layout and
 - Empty input returns unchanged without a provider path.
 - Configuration and unavailable-profile failures preserve the raw input on standard output, use a non-zero status, and write only a non-sensitive diagnostic to standard error. The recoverable provider-failure policy is intentionally deferred to Phase 4.
 - Added binary integration tests for byte-preserving Raw output, empty input, explicit profile selection without changing persistent selection, and clean fallback output without dictated text in diagnostics.
+- Committed and pushed the Phase 3 implementation as `9f36468` (`feat: add raw processing path`).
+
+### 2026-09-11 — Phase 4: Fallback policy and response validation
+
+- Added a provider-independent processing outcome layer that centralizes processed output and raw-text fallback decisions.
+- Defined recoverable provider failures: unavailable provider, timeout, network failure, authentication failure, HTTP status failure, response parsing failure, and invalid response.
+- Recoverable provider failures now preserve raw input, return success, and emit only a generic non-sensitive diagnostic on standard error.
+- Added per-profile output policy fields. By default, empty output, NUL bytes, obvious preambles, and Markdown framing are rejected.
+- Added validation tests for successful output, every recoverable failure category, invalid responses, and profile policies that explicitly allow Markdown or preambles.
+- Updated the process integration behavior so an unavailable non-Raw profile returns raw output with success and no dictated text in diagnostics.
 
 ## Decisions currently in force
 
@@ -100,12 +110,16 @@ Phases 0, 1, 2, and 3 are complete. The repository has its documented layout and
 - Ran `cargo test --workspace` after Phase 3; all 20 tests passed.
 - Verified `printf 'exact input\\n' | voxtype-personas process` in temporary XDG directories; the output matched byte-for-byte.
 - Ran `git diff --check` after Phase 3; it reported no whitespace errors.
+- Ran `cargo fmt --check` after Phase 4; formatting is compliant.
+- Ran `cargo test --workspace` after Phase 4; all 24 tests passed.
+- Verified a non-Raw unavailable profile in temporary XDG directories: raw output was preserved, the process exited successfully, and standard error contained no dictated text.
+- Ran `git diff --check` after Phase 4; it reported no whitespace errors.
 
 ## Next proposed step
 
-Begin Phase 4 of `ROADMAP.md`: centralize fallback handling and validate provider output. Provider transport implementations remain out of scope.
+Begin Phase 5 of `ROADMAP.md`: design and implement the mandatory Secret Service abstraction with a test double. Provider transport implementations remain out of scope.
 
 ## Commit and push status
 
 - Phase 0 repository baseline committed with message `chore: establish repository baseline`.
-- No push has been performed.
+- Phase 3 was pushed to `origin/main` as part of commit `9f36468`.

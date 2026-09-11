@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::processing::{ProcessingOutput, ProviderFailure, finalize_provider_response};
 use crate::storage::ConfigStore;
 use clap::{Args, Parser, Subcommand};
 use std::fs;
@@ -118,13 +119,12 @@ fn process(args: ProcessArgs) -> Result<(), CliError> {
         return write_pasteable_output(&transcription);
     }
 
-    preserve_raw_and_fail(
+    let output = finalize_provider_response(
         &transcription,
-        CliError::NotImplemented(format!(
-            "profile '{}' is not available until provider processing is implemented",
-            profile.name
-        )),
-    )
+        Err(ProviderFailure::Unavailable),
+        &profile.output_policy,
+    );
+    write_processing_output(output)
 }
 
 fn preserve_raw_and_fail(transcription: &[u8], error: CliError) -> Result<(), CliError> {
@@ -136,6 +136,14 @@ fn write_pasteable_output(output: &[u8]) -> Result<(), CliError> {
     let mut stdout = io::stdout().lock();
     stdout.write_all(output).map_err(CliError::WriteOutput)?;
     stdout.flush().map_err(CliError::WriteOutput)
+}
+
+fn write_processing_output(output: ProcessingOutput) -> Result<(), CliError> {
+    write_pasteable_output(output.output_bytes())?;
+    if output.fallback_reason().is_some() {
+        eprintln!("voxtype-personas: post-processing was unavailable; returned raw transcription");
+    }
+    Ok(())
 }
 
 fn validate(args: ValidateArgs) -> Result<(), CliError> {

@@ -6,7 +6,7 @@ The engine receives a local Whisper transcription on standard input and writes o
 
 ## Status
 
-Phase 3 of the roadmap is complete. The engine now has a Rust workspace, versioned configuration persistence, migrations, persisted profile selection, and the Raw processing path. No provider adapter, plugin, or Voxtype integration has been implemented yet.
+Phase 4 of the roadmap is complete. The engine now has a Rust workspace, persisted configuration, Raw processing, and a centralized fallback and output-validation policy. No provider adapter, plugin, or Voxtype integration has been implemented yet.
 
 ## Scope
 
@@ -76,7 +76,9 @@ voxtype-personas process --profile raw
 
 On first use, configuration is created at the XDG path `~/.config/voxtype-personas/config.toml` with owner-only file permissions. The default active persona is Raw. Provider processing is introduced in later roadmap phases.
 
-`process` resolves its selected profile once when the command begins. Raw copies standard input to standard output byte-for-byte and produces no diagnostics. Until provider processing is implemented, selecting a non-Raw profile preserves the raw text on standard output and returns a non-zero status with a non-sensitive diagnostic on standard error.
+`process` resolves its selected profile once when the command begins. Raw copies standard input to standard output byte-for-byte and produces no diagnostics. A recoverable provider failure preserves the raw text on standard output, returns success, and emits only a non-sensitive diagnostic on standard error.
+
+Provider output must be non-empty and free of NUL characters. By default, obvious preambles and Markdown framing are also rejected; the per-profile output policy can explicitly allow either form when needed.
 
 ## Development plan
 
