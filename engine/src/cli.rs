@@ -2,6 +2,7 @@ use crate::config::Config;
 use crate::storage::ConfigStore;
 use clap::{Args, Parser, Subcommand};
 use std::fs;
+use std::io::{self, Read, Write};
 use std::path::PathBuf;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -83,13 +84,7 @@ fn run_from(cli: Cli) -> Result<(), CliError> {
         Command::Config(ConfigArgs {
             command: ConfigCommand::Validate(args),
         }) => validate(args),
-        Command::Process(args) => Err(CliError::NotImplemented(format!(
-            "process{} is not available until Phase 3",
-            args.profile
-                .as_deref()
-                .map(|profile| format!(" for profile '{profile}'"))
-                .unwrap_or_default()
-        ))),
+        Command::Process(args) => process(args),
         Command::Profiles(ProfilesArgs { command }) => profiles(command),
         Command::Providers(ProvidersArgs {
             command: ProvidersCommand::Test { id },
@@ -97,6 +92,50 @@ fn run_from(cli: Cli) -> Result<(), CliError> {
             "providers test for '{id}' is not available until Phase 6"
         ))),
     }
+}
+
+fn process(args: ProcessArgs) -> Result<(), CliError> {
+    let mut transcription = Vec::new();
+    io::stdin()
+        .read_to_end(&mut transcription)
+        .map_err(CliError::ReadInput)?;
+
+    let store = match ConfigStore::discover() {
+        Ok(store) => store,
+        Err(error) => return preserve_raw_and_fail(&transcription, CliError::Store(error)),
+    };
+    let config = match store.load_or_create() {
+        Ok(config) => config,
+        Err(error) => return preserve_raw_and_fail(&transcription, CliError::Store(error)),
+    };
+    let profile_id = args.profile.unwrap_or(config.active_profile);
+    let profile = match config.profiles.get(&profile_id) {
+        Some(profile) => profile,
+        None => return preserve_raw_and_fail(&transcription, CliError::UnknownProfile),
+    };
+
+    if profile_id == crate::config::RAW_PROFILE_ID {
+        return write_pasteable_output(&transcription);
+    }
+
+    preserve_raw_and_fail(
+        &transcription,
+        CliError::NotImplemented(format!(
+            "profile '{}' is not available until provider processing is implemented",
+            profile.name
+        )),
+    )
+}
+
+fn preserve_raw_and_fail(transcription: &[u8], error: CliError) -> Result<(), CliError> {
+    write_pasteable_output(transcription)?;
+    Err(error)
+}
+
+fn write_pasteable_output(output: &[u8]) -> Result<(), CliError> {
+    let mut stdout = io::stdout().lock();
+    stdout.write_all(output).map_err(CliError::WriteOutput)?;
+    stdout.flush().map_err(CliError::WriteOutput)
 }
 
 fn validate(args: ValidateArgs) -> Result<(), CliError> {
@@ -147,6 +186,9 @@ fn profiles(command: ProfilesCommand) -> Result<(), CliError> {
 #[derive(Debug)]
 pub enum CliError {
     NotImplemented(String),
+    ReadInput(io::Error),
+    WriteOutput(io::Error),
+    UnknownProfile,
     ReadConfig {
         path: PathBuf,
         source: std::io::Error,
@@ -160,6 +202,11 @@ impl std::fmt::Display for CliError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotImplemented(message) => write!(formatter, "{message}"),
+            Self::ReadInput(error) => write!(formatter, "could not read standard input: {error}"),
+            Self::WriteOutput(error) => {
+                write!(formatter, "could not write standard output: {error}")
+            }
+            Self::UnknownProfile => write!(formatter, "the requested profile does not exist"),
             Self::ReadConfig { path, source } => {
                 write!(
                     formatter,

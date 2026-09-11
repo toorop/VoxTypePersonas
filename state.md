@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0, 1, and 2 are complete. The repository has its documented layout and a tested Rust workspace with versioned configuration persistence, migrations, and persisted profile selection. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
+Phases 0, 1, 2, and 3 are complete. The repository has its documented layout and a tested Rust workspace with versioned configuration persistence, migrations, persisted profile selection, and a byte-preserving Raw processing path. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
 
 ## Completed work
 
@@ -59,6 +59,17 @@ Phases 0, 1, and 2 are complete. The repository has its documented layout and a 
 - Ensured an unknown profile selection leaves a valid persisted configuration unchanged.
 - Kept Raw mandatory through configuration validation; no profile deletion feature exists at this stage.
 - Added storage tests for first-use defaults, persistence, invalid selection preservation, malformed configuration preservation, migration backup creation, and Unix file permissions.
+- Committed the Phase 2 implementation as `ef5c686` (`feat: persist configuration and active profiles`).
+
+### 2026-09-11 — Phase 3: Raw processing path and CLI behavioral contract
+
+- Implemented `voxtype-personas process` and `process --profile <id>`.
+- The command reads standard input as bytes so Raw can preserve the exact input without altering whitespace, line endings, or other bytes.
+- The profile is selected exactly once at the start of an invocation from either `--profile` or the persisted active profile.
+- Raw writes only the original input to standard output, produces no diagnostics, and returns success.
+- Empty input returns unchanged without a provider path.
+- Configuration and unavailable-profile failures preserve the raw input on standard output, use a non-zero status, and write only a non-sensitive diagnostic to standard error. The recoverable provider-failure policy is intentionally deferred to Phase 4.
+- Added binary integration tests for byte-preserving Raw output, empty input, explicit profile selection without changing persistent selection, and clean fallback output without dictated text in diagnostics.
 
 ## Decisions currently in force
 
@@ -85,10 +96,14 @@ Phases 0, 1, and 2 are complete. The repository has its documented layout and a 
 - Ran `cargo test --workspace` after Phase 2; all 16 tests passed.
 - Verified the CLI in temporary XDG directories: first-use creation, profile listing, selecting Chat, persisted re-listing, validation, and configuration file mode `0600` all succeeded.
 - Ran `git diff --check` after Phase 2; it reported no whitespace errors.
+- Ran `cargo fmt --check` after Phase 3; formatting is compliant.
+- Ran `cargo test --workspace` after Phase 3; all 20 tests passed.
+- Verified `printf 'exact input\\n' | voxtype-personas process` in temporary XDG directories; the output matched byte-for-byte.
+- Ran `git diff --check` after Phase 3; it reported no whitespace errors.
 
 ## Next proposed step
 
-Begin Phase 3 of `ROADMAP.md`: implement the Raw `stdin` to `stdout` processing path and its CLI behavioral contract. Provider networking and UI work remain out of scope.
+Begin Phase 4 of `ROADMAP.md`: centralize fallback handling and validate provider output. Provider transport implementations remain out of scope.
 
 ## Commit and push status
 
