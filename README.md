@@ -6,7 +6,7 @@ The engine receives a local Whisper transcription on standard input and writes o
 
 ## Status
 
-Phase 1 of the roadmap is complete: the Rust workspace, configuration contract, path model, and CLI skeleton are established. No provider adapter, plugin, or Voxtype integration has been implemented yet.
+Phase 2 of the roadmap is complete. The engine now has a Rust workspace, versioned configuration persistence, migrations, and persisted profile selection. No provider adapter, plugin, or Voxtype integration has been implemented yet.
 
 ## Scope
 
@@ -58,6 +58,21 @@ The directories above are populated only when their corresponding roadmap phase 
 ## Development prerequisites
 
 Phase 1 requires a current Rust toolchain with Cargo. Future phases will additionally document the exact Omarchy/Quickshell validation tools, Secret Service requirements, Minisign tooling, and CI environment. No development dependency is installed automatically by this repository.
+
+## Available engine commands
+
+The following configuration commands are available during the current implementation stage:
+
+```text
+voxtype-personas version
+voxtype-personas config validate
+voxtype-personas config validate --defaults
+voxtype-personas config validate --file <path>
+voxtype-personas profiles list
+voxtype-personas profiles set-active <id>
+```
+
+On first use, configuration is created at the XDG path `~/.config/voxtype-personas/config.toml` with owner-only file permissions. The default active persona is Raw. Provider processing is introduced in later roadmap phases.
 
 ## Development plan
 

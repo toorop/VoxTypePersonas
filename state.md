@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 and 1 are complete. The repository has its documented layout and a tested Rust workspace with a versioned configuration contract and CLI skeleton. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
+Phases 0, 1, and 2 are complete. The repository has its documented layout and a tested Rust workspace with versioned configuration persistence, migrations, and persisted profile selection. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
 
 ## Completed work
 
@@ -46,6 +46,19 @@ Phases 0 and 1 are complete. The repository has its documented layout and a test
 - Added XDG path discovery for configuration, state, engine installation, temporary downloads, backups, and logs. Managed directories use owner-only permissions on Unix.
 - Added tests for default configuration, TOML round-tripping, duplicate TOML profile definitions, unsupported schema versions, invalid active profiles, invalid provider references without secret disclosure, XDG path resolution, and private directory permissions.
 - Added `Cargo.lock` for reproducible dependency resolution.
+- Committed the Phase 1 implementation as `1cad1f7` (`feat: add configuration contract and CLI skeleton`).
+
+### 2026-09-11 — Phase 2: Atomic persistence and configuration migration
+
+- Added `ConfigStore`, the engine configuration storage layer.
+- Implemented first-use creation of the default configuration at the XDG configuration path.
+- Implemented atomic configuration writes using a same-directory temporary file, synchronization, owner-only file permissions on Unix, and atomic replacement.
+- Implemented schema detection and sequential migration dispatch. The initial v0-to-v1 migration creates a non-overwriting backup before it writes the migrated configuration.
+- Implemented safe handling of malformed, inaccessible, or unsupported configuration: errors are returned and the existing source file is not replaced.
+- Implemented persisted `profiles list` and `profiles set-active <id>` commands.
+- Ensured an unknown profile selection leaves a valid persisted configuration unchanged.
+- Kept Raw mandatory through configuration validation; no profile deletion feature exists at this stage.
+- Added storage tests for first-use defaults, persistence, invalid selection preservation, malformed configuration preservation, migration backup creation, and Unix file permissions.
 
 ## Decisions currently in force
 
@@ -68,10 +81,14 @@ Phases 0 and 1 are complete. The repository has its documented layout and a test
 - Ran `voxtype-personas version`, `voxtype-personas config validate --defaults`, and the CLI help output successfully.
 - Confirmed `voxtype-personas profiles list` exits with the expected explicit unavailable message until Phase 2.
 - Ran `git diff --check` after Phase 1; it reported no whitespace errors.
+- Ran `cargo fmt --check` after Phase 2; formatting is compliant.
+- Ran `cargo test --workspace` after Phase 2; all 16 tests passed.
+- Verified the CLI in temporary XDG directories: first-use creation, profile listing, selecting Chat, persisted re-listing, validation, and configuration file mode `0600` all succeeded.
+- Ran `git diff --check` after Phase 2; it reported no whitespace errors.
 
 ## Next proposed step
 
-Begin Phase 2 of `ROADMAP.md`: implement atomic configuration persistence, first-run defaults, schema migration scaffolding, and persisted profile selection. Provider networking and UI work remain out of scope.
+Begin Phase 3 of `ROADMAP.md`: implement the Raw `stdin` to `stdout` processing path and its CLI behavioral contract. Provider networking and UI work remain out of scope.
 
 ## Commit and push status
 

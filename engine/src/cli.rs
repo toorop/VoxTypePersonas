@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::storage::ConfigStore;
 use clap::{Args, Parser, Subcommand};
 use std::fs;
 use std::path::PathBuf;
@@ -89,14 +90,7 @@ fn run_from(cli: Cli) -> Result<(), CliError> {
                 .map(|profile| format!(" for profile '{profile}'"))
                 .unwrap_or_default()
         ))),
-        Command::Profiles(ProfilesArgs { command }) => {
-            Err(CliError::NotImplemented(match command {
-                ProfilesCommand::List => "profiles list is not available until Phase 2".to_owned(),
-                ProfilesCommand::SetActive { id } => {
-                    format!("profiles set-active for '{id}' is not available until Phase 2")
-                }
-            }))
-        }
+        Command::Profiles(ProfilesArgs { command }) => profiles(command),
         Command::Providers(ProvidersArgs {
             command: ProvidersCommand::Test { id },
         }) => Err(CliError::NotImplemented(format!(
@@ -112,7 +106,10 @@ fn validate(args: ValidateArgs) -> Result<(), CliError> {
                 .map_err(|source| CliError::ReadConfig { path, source })?;
             Config::parse(&text).map_err(CliError::ParseConfig)?
         }
-        None => Config::defaults(),
+        None if args.defaults => Config::defaults(),
+        None => ConfigStore::discover()
+            .and_then(|store| store.load_or_create())
+            .map_err(CliError::Store)?,
     };
 
     config.validate().map_err(CliError::InvalidConfig)?;
@@ -124,6 +121,29 @@ fn validate(args: ValidateArgs) -> Result<(), CliError> {
     Ok(())
 }
 
+fn profiles(command: ProfilesCommand) -> Result<(), CliError> {
+    let store = ConfigStore::discover().map_err(CliError::Store)?;
+    match command {
+        ProfilesCommand::List => {
+            let config = store.load_or_create().map_err(CliError::Store)?;
+            for (id, profile) in config.profiles {
+                let marker = if id == config.active_profile {
+                    "*"
+                } else {
+                    " "
+                };
+                println!("{marker} {id}\t{}", profile.name);
+            }
+            Ok(())
+        }
+        ProfilesCommand::SetActive { id } => {
+            let config = store.set_active_profile(&id).map_err(CliError::Store)?;
+            println!("Active profile set to '{}'.", config.active_profile);
+            Ok(())
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum CliError {
     NotImplemented(String),
@@ -133,6 +153,7 @@ pub enum CliError {
     },
     ParseConfig(toml::de::Error),
     InvalidConfig(crate::config::ValidationErrors),
+    Store(crate::storage::StoreError),
 }
 
 impl std::fmt::Display for CliError {
@@ -148,6 +169,7 @@ impl std::fmt::Display for CliError {
             }
             Self::ParseConfig(error) => write!(formatter, "could not parse configuration: {error}"),
             Self::InvalidConfig(error) => write!(formatter, "{error}"),
+            Self::Store(error) => write!(formatter, "{error}"),
         }
     }
 }
