@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0, 1, 2, 3, and 4 are complete. The repository has its documented layout and a tested Rust workspace with versioned configuration persistence, Raw processing, and centralized fallback and output-validation rules. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
+Phases 0 through 5 are complete. The repository has its documented layout and a tested Rust workspace with versioned configuration persistence, Raw processing, fallback rules, and a mandatory Secret Service abstraction. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
 
 ## Completed work
 
@@ -81,6 +81,15 @@ Phases 0, 1, 2, 3, and 4 are complete. The repository has its documented layout 
 - Added validation tests for successful output, every recoverable failure category, invalid responses, and profile policies that explicitly allow Markdown or preambles.
 - Updated the process integration behavior so an unavailable non-Raw profile returns raw output with success and no dictated text in diagnostics.
 
+### 2026-09-11 — Phase 5: Secret Service abstraction
+
+- Selected the Rust `secret-service` client and its blocking D-Bus API with encrypted-session support as the concrete Linux Secret Service adapter for provider configuration work.
+- Added the `SecretStore` interface with read, write, verify, replace, and delete operations.
+- Defined opaque provider secret references as `org.voxtype-personas/provider/<provider-id>`.
+- Added explicit non-sensitive errors for invalid references, unavailable or locked Secret Service, missing secrets, and failed operations.
+- Added an in-memory `SecretStore` test double. It is limited to tests and is not a file fallback or a production key store.
+- Added tests covering the complete secret lifecycle and secret-free error text.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -114,10 +123,13 @@ Phases 0, 1, 2, 3, and 4 are complete. The repository has its documented layout 
 - Ran `cargo test --workspace` after Phase 4; all 24 tests passed.
 - Verified a non-Raw unavailable profile in temporary XDG directories: raw output was preserved, the process exited successfully, and standard error contained no dictated text.
 - Ran `git diff --check` after Phase 4; it reported no whitespace errors.
+- Ran `cargo fmt --check` after Phase 5; formatting is compliant.
+- Ran `cargo test --workspace` after Phase 5; all 26 tests passed.
+- Ran `git diff --check` after Phase 5; it reported no whitespace errors.
 
 ## Next proposed step
 
-Begin Phase 5 of `ROADMAP.md`: design and implement the mandatory Secret Service abstraction with a test double. Provider transport implementations remain out of scope.
+Begin Phase 6 of `ROADMAP.md`: define the provider interface and implement the local Ollama adapter. Remote provider work and UI remain out of scope.
 
 ## Commit and push status
 

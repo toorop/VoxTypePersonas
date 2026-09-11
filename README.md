@@ -34,6 +34,10 @@ Phase 4 of the roadmap is complete. The engine now has a Rust workspace, persist
 - Every provider, timeout, network, parsing, or invalid-output failure falls back to the original transcription.
 - The plugin asks for confirmation before it downloads, installs, or updates an engine binary.
 
+## Secret storage
+
+VoxTypePersonas requires the Linux Secret Service API for API keys and has no file-based fallback. The engine uses the stable `org.voxtype-personas/provider/<provider-id>` reference convention; only the reference belongs in configuration. The selected D-Bus adapter is the Rust `secret-service` client with its blocking API and encrypted session support; it will be connected when provider configuration begins to use keys.
+
 ## Planned repository layout
 
 ```text
