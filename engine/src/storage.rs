@@ -297,16 +297,12 @@ mod tests {
     }
 
     #[test]
-    fn active_profile_selection_is_persisted() {
+    fn example_profile_is_persisted_but_remains_unconfigured() {
         let (_root, store) = test_store();
-        store.load_or_create().expect("defaults should be created");
+        let config = store.load_or_create().expect("defaults should be created");
 
-        store
-            .set_active_profile("chat")
-            .expect("known profile should be selected");
-        let reloaded = store.load_or_create().expect("configuration should reload");
-
-        assert_eq!(reloaded.active_profile, "chat");
+        assert!(config.profiles.contains_key("example"));
+        assert_eq!(config.active_profile, RAW_PROFILE_ID);
     }
 
     #[test]

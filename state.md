@@ -132,6 +132,14 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Moved portable profile import/export and pull-request contribution support into the v1 profile-catalog scope.
 - Confirmed that portable profile imports must be fully validated and rejected atomically when invalid, unsafe, or non-conformant.
 
+### 2026-09-11 — Phase 9: default profile reset (in progress)
+
+- Replaced the previous built-in Chat, Email, Technical, and Meeting / Notes defaults with the generic Example draft profile.
+- The generated configuration now contains only Raw and Example; Raw remains active on first use.
+- The Example profile remains intentionally incomplete because it has no provider or model assignment.
+- Activation gating, explicit Draft/Ready/Active status reporting, and validated import/export remain outstanding Phase 9 work.
+- Ran `cargo fmt --check`, `cargo test --workspace`, and `git diff --check`; formatting and diff checks are clean, and all 35 tests pass.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -176,7 +184,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Review the documented profile-catalog and readiness decision. Phase 9 has been redesigned around Raw-only defaults, Draft/Ready/Active states, and portable Markdown profiles; its implementation has not started. Do not begin it until the user explicitly approves it.
+Complete the next small Phase 9 step: enforce activation eligibility for draft profiles and expose clear Draft/Ready/Active status through the engine CLI. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 

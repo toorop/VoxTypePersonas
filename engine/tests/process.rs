@@ -55,7 +55,7 @@ fn empty_input_is_returned_unchanged() {
 #[test]
 fn explicit_raw_profile_does_not_change_the_persisted_selection() {
     let root = tempfile::tempdir().expect("temporary XDG root should exist");
-    let initial = run_process(&root, &["profiles", "set-active", "chat"], b"");
+    let initial = run_process(&root, &["profiles", "set-active", "example"], b"");
     assert!(initial.status.success());
 
     let output = run_process(&root, &["process", "--profile", "raw"], b"raw text");
@@ -64,7 +64,7 @@ fn explicit_raw_profile_does_not_change_the_persisted_selection() {
 
     let config_path = root.path().join("config/voxtype-personas/config.toml");
     let configuration = fs::read_to_string(config_path).expect("configuration should exist");
-    assert!(configuration.contains("active_profile = \"chat\""));
+    assert!(configuration.contains("active_profile = \"example\""));
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn unavailable_profile_preserves_raw_output_and_keeps_input_out_of_diagnostics()
     let root = tempfile::tempdir().expect("temporary XDG root should exist");
     let input = b"private dictated content";
 
-    let output = run_process(&root, &["process", "--profile", "chat"], input);
+    let output = run_process(&root, &["process", "--profile", "example"], input);
 
     assert!(output.status.success());
     assert_eq!(output.stdout, input);
