@@ -1,5 +1,7 @@
 # VoxTypePersonas — Spécifications fonctionnelles et techniques (v1)
 
+> **Superseding profile decision:** Raw is the only active built-in profile. `profiles/example.md` is the single shipped non-Raw profile and is a generic, non-activatable draft. Profiles may be loaded while incomplete, but only Ready profiles can be activated. Portable complete profile definitions use Markdown with YAML front matter, exclude secrets and local Secret Service references, and may be imported, exported, externally edited, and contributed through pull requests. This decision supersedes conflicting earlier statements in this document about built-in Chat, Email, Technical, Meeting / Notes profiles and deferred profile import/export.
+
 ## 1. Objectif
 
 VoxTypePersonas est un plugin Omarchy dédié à Voxtype. Il permet de sélectionner, depuis la barre supérieure d'Omarchy, un profil de post-traitement pour les transcriptions de dictée.

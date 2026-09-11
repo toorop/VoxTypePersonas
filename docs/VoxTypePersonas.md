@@ -1,5 +1,7 @@
 # VoxTypePersonas — notes de cadrage
 
+> **Superseding profile decision:** Raw is the only active built-in profile. A single generic Example draft profile is distributed in `profiles/example.md`. It is portable Markdown with YAML front matter, may be externally edited and contributed through pull requests, contains no secrets, and cannot be activated until a compatible provider, model, and verified local secret are configured. This supersedes earlier statements about built-in ready-to-use personas and post-v1 profile import/export.
+
 ## Intention
 
 Créer un projet exclusivement destiné à Omarchy qui permet de choisir simplement le « persona » de post-traitement d'une dictée Voxtype. L'objectif n'est pas de rendre toute dictée plus formelle : chaque contexte doit conserver le ton voulu, notamment un style conversationnel, naturel et peu académique.

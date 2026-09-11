@@ -122,6 +122,16 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Both adapters use the existing Secret Service key path, HTTP error mapping, response validation, and raw-text fallback.
 - Added mock transport tests for Anthropic and Gemini request shapes and response parsing.
 
+### 2026-09-11 — Profile catalog and readiness decision
+
+- Replaced the planned ready-to-use built-in Chat, Email, Technical, and Meeting / Notes profiles with one generic Example draft profile.
+- Confirmed that Raw is the sole active profile on first use.
+- Defined Draft, Ready, and Active profile states. Only Ready profiles may be activated.
+- Added the versioned `profiles/` catalog with Markdown plus YAML-front-matter documentation and `profiles/example.md`.
+- Confirmed that portable profiles contain public configuration only: no API keys, dictated text, or local Secret Service references.
+- Moved portable profile import/export and pull-request contribution support into the v1 profile-catalog scope.
+- Confirmed that portable profile imports must be fully validated and rejected atomically when invalid, unsafe, or non-conformant.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -166,7 +176,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Begin Phase 9 of `ROADMAP.md`: review and finalize the built-in prompt wording and profile rules. Do not begin until the user explicitly approves it.
+Review the documented profile-catalog and readiness decision. Phase 9 has been redesigned around Raw-only defaults, Draft/Ready/Active states, and portable Markdown profiles; its implementation has not started. Do not begin it until the user explicitly approves it.
 
 ## Commit and push status
 

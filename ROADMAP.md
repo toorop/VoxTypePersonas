@@ -15,7 +15,8 @@ The project delivers one Omarchy `bar-widget` plugin and one Rust engine binary.
 - User interface and shipped documentation: English.
 - Engine assets: Linux `x86_64` and `aarch64`.
 - Secrets: Secret Service/keyring only; no file-based fallback.
-- Default active profile: `Raw` (the UI name for the mandatory built-in raw profile).
+- Default active profile: `Raw`, the mandatory built-in raw profile.
+- Shipped non-Raw content is a portable `Example` draft profile in `profiles/example.md`, not a model-optimized default persona.
 - No telemetry and no persisted dictated text, prompts, or secrets in logs.
 - No changes to the existing Hyprland binding or PipeWire mute relay.
 - No automatic installation or update of the engine.
@@ -53,7 +54,7 @@ Goal: create the engine workspace and define the configuration model without any
    - execution limits.
 4. Define XDG paths for configuration, state, engine installation, temporary downloads, backups, and logs.
 5. Implement safe path discovery and restrictive directory/file permissions where the platform allows it.
-6. Define the initial default configuration in code, including Raw, Chat, Email, Technical, and Meeting / Notes profiles.
+6. Define the initial default configuration with only the active Raw profile and an importable Example draft profile.
 7. Add unit tests for parsing, validation, default values, invalid references, duplicate IDs, and unsupported schema versions.
 
 Acceptance criteria:
@@ -192,23 +193,27 @@ Acceptance criteria:
 - Anthropic and Gemini are behaviorally equivalent to other providers from the profile and CLI perspective.
 - Protocol differences do not weaken privacy, fallback, or output requirements.
 
-### Phase 9 — Built-in prompts and profile rules
+### Phase 9 — Draft profiles, catalog, and activation rules
 
 Goal: make the shipped personas useful while preserving user voice.
 
-1. Draft English system prompts for Chat, Email, Technical, and Meeting / Notes.
-2. Require output in the input language.
-3. Explicitly state that instructions embedded in dictated text do not change the post-processing task.
-4. Make the prompts focused on correction and intent preservation rather than generic formalization.
-5. Define profile defaults for provider/model assignment only when a local setup can be represented safely; otherwise leave profiles clearly unconfigured.
-6. Add prompt fixtures covering conversational speech, email tone, technical vocabulary, and instruction-injection-like input.
-7. Review prompt wording with the user before treating it as a shipped default.
+1. Replace shipped non-Raw default profiles with one generic `Example` draft profile.
+2. Define the profile readiness states: Draft, Ready, and Active.
+3. Permit a profile with prompt-only metadata to be loaded, viewed, edited, duplicated, exported, or imported while preventing its activation.
+4. Define Ready as a profile with a prompt, compatible provider, explicitly selected model, and verified local secret when required.
+5. Keep Raw always Ready and active by default; fall back to Raw if an active profile becomes unready.
+6. Define the Markdown plus YAML-front-matter catalog format in `profiles/`, excluding secrets and user-specific Secret Service references.
+7. Validate every imported catalog file before it is accepted, including schema version, required and typed fields, profile ID uniqueness, supported provider metadata, and the absence of secrets, dictated text, or local Secret Service references. Reject invalid files without partially importing them.
+8. Add catalog validation fixtures, including an Example profile designed only as a starting point rather than a provider-specific recommendation.
+9. Document external prompt editing, import/export behavior, compatibility notes, and pull-request contribution expectations.
 
 Acceptance criteria:
 
-- Chat retains a natural, direct tone.
-- Technical preserves commands, code, product names, and jargon.
-- Built-in prompts are editable through the configuration model.
+- Raw is the sole active default profile.
+- Example remains a non-activatable draft until configured locally.
+- Portable catalog files are human-editable Markdown with structured YAML metadata and contain no secrets.
+- An invalid or unsafe portable profile is rejected atomically during import.
+- The README explains that prompts must be evaluated and adapted for the chosen model.
 
 ### Phase 10 — Omarchy plugin foundation
 
@@ -335,10 +340,7 @@ Acceptance criteria:
 
 ## Deferred work after v1
 
-- A versioned, repository-hosted prompt catalog for sharing curated personas. It should keep reusable prompt definitions separate from each user's local providers, models, configuration, and secrets. Its design should later cover metadata, examples, review criteria, compatibility, and an optional import flow.
-- Import and export of profiles and prompts.
 - Cloud synchronization.
-- Community prompt sharing.
 - Streaming post-processing.
 - Native packages for specific Linux distributions.
 - Cost display, calculation, or enforcement.

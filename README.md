@@ -14,7 +14,8 @@ Phase 8 is complete. The engine supports local Ollama, OpenAI-compatible provide
 - An anchored Omarchy `bar-widget` for quick persona selection and settings.
 - A Rust engine distributed separately through signed GitHub Release assets.
 - Linux `x86_64` and `aarch64` engine releases.
-- Built-in Raw, Chat, Email, Technical, and Meeting / Notes personas.
+- The mandatory Raw profile plus an importable, non-activatable Example draft profile.
+- A versioned `profiles/` catalog of portable Markdown profiles that users can edit externally and contribute through pull requests.
 - Local Ollama and configured remote providers.
 - Secret Service/keyring storage for API keys.
 
@@ -37,6 +38,14 @@ Phase 8 is complete. The engine supports local Ollama, OpenAI-compatible provide
 ## Secret storage
 
 VoxTypePersonas requires the Linux Secret Service API for API keys and has no file-based fallback. The engine uses the stable `org.voxtype-personas/provider/<provider-id>` reference convention; only the reference belongs in configuration. The selected D-Bus adapter is the Rust `secret-service` client with its blocking API and encrypted session support; it will be connected when provider configuration begins to use keys.
+
+## Profile readiness and shared profiles
+
+Raw is the only profile active on first use. The bundled Example profile is a generic draft intended for learning and adaptation, not a prompt optimized for a specific provider or model.
+
+A profile may be saved while incomplete. Draft profiles can be viewed, edited, duplicated, imported, exported, and loaded by the application, but cannot be activated. A profile becomes Ready only when it has a prompt, a compatible provider, an explicit model selection, and a verified local key when that provider requires one. The user interface must disable activation for drafts and explain what is missing.
+
+Portable profiles live in [profiles/](profiles/README.md). They use Markdown with YAML front matter so they can be edited and tested outside VoxTypePersonas. The portable format includes public provider/model metadata, limits, output policy, and compatibility notes; it excludes API keys and local Secret Service references.
 
 ## Planned repository layout
 
