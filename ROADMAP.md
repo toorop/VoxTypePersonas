@@ -335,6 +335,7 @@ Acceptance criteria:
 
 ## Deferred work after v1
 
+- A versioned, repository-hosted prompt catalog for sharing curated personas. It should keep reusable prompt definitions separate from each user's local providers, models, configuration, and secrets. Its design should later cover metadata, examples, review criteria, compatibility, and an optional import flow.
 - Import and export of profiles and prompts.
 - Cloud synchronization.
 - Community prompt sharing.

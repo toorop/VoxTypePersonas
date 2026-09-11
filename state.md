@@ -28,6 +28,13 @@ Phase 0, Repository baseline, is complete. The repository has its documented lay
 - Set the MIT license copyright holder to Stéphane Depierrepont.
 - Did not add application code, dependencies, provider integrations, Omarchy plugin content, or Voxtype configuration changes.
 
+### 2026-09-11 — Deferred prompt catalog decision
+
+- Recorded a post-v1 idea for a versioned prompt catalog stored in this repository.
+- The catalog is intended to let users share curated reusable personas while keeping local providers, selected models, configuration, and secrets outside the catalog.
+- This does not change the v1 scope: importing/exporting prompts and community sharing remain deferred.
+- Committed this recorded decision with message `docs: record shared prompt catalog idea`.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
