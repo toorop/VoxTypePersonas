@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::processing::{ProcessingOutput, ProviderFailure, finalize_provider_response};
+use crate::providers::{ProviderAdapter, ProviderRequest, ReqwestTransport, ollama_from_provider};
 use crate::storage::ConfigStore;
 use clap::{Args, Parser, Subcommand};
 use std::fs;
@@ -89,10 +90,25 @@ fn run_from(cli: Cli) -> Result<(), CliError> {
         Command::Profiles(ProfilesArgs { command }) => profiles(command),
         Command::Providers(ProvidersArgs {
             command: ProvidersCommand::Test { id },
-        }) => Err(CliError::NotImplemented(format!(
-            "providers test for '{id}' is not available until Phase 6"
-        ))),
+        }) => provider_test(&id),
     }
+}
+
+fn provider_test(id: &str) -> Result<(), CliError> {
+    let config = ConfigStore::discover()
+        .and_then(|store| store.load_or_create())
+        .map_err(CliError::Store)?;
+    let provider = config.providers.get(id).ok_or(CliError::UnknownProfile)?;
+    let model = provider.models.first().ok_or_else(|| {
+        CliError::NotImplemented("provider has no configured model for testing".to_owned())
+    })?;
+    let adapter = ollama_from_provider(provider, ReqwestTransport)
+        .map_err(|_| CliError::NotImplemented("provider kind is not available yet".to_owned()))?;
+    adapter
+        .test(model, provider.timeout_ms.unwrap_or(30_000))
+        .map_err(|_| CliError::NotImplemented("provider test failed".to_owned()))?;
+    println!("Provider test succeeded.");
+    Ok(())
 }
 
 fn process(args: ProcessArgs) -> Result<(), CliError> {
@@ -119,11 +135,38 @@ fn process(args: ProcessArgs) -> Result<(), CliError> {
         return write_pasteable_output(&transcription);
     }
 
-    let output = finalize_provider_response(
-        &transcription,
-        Err(ProviderFailure::Unavailable),
-        &profile.output_policy,
-    );
+    let response = match (&profile.provider, &profile.model, &profile.prompt) {
+        (Some(provider_id), Some(model), Some(prompt_id)) => {
+            let Some(provider) = config.providers.get(provider_id) else {
+                return write_processing_output(finalize_provider_response(
+                    &transcription,
+                    Err(ProviderFailure::Unavailable),
+                    &profile.output_policy,
+                ));
+            };
+            let Some(prompt) = config.prompts.get(prompt_id) else {
+                return write_processing_output(finalize_provider_response(
+                    &transcription,
+                    Err(ProviderFailure::Unavailable),
+                    &profile.output_policy,
+                ));
+            };
+            let user_text = String::from_utf8(transcription.clone()).map_err(|_| {
+                CliError::NotImplemented("provider processing requires UTF-8 input".to_owned())
+            })?;
+            ollama_from_provider(provider, ReqwestTransport).and_then(|adapter| {
+                adapter.process(&ProviderRequest {
+                    model: model.clone(),
+                    system_prompt: prompt.system.clone(),
+                    user_text,
+                    timeout_ms: profile.timeout_ms,
+                    max_output_tokens: profile.max_output_tokens,
+                })
+            })
+        }
+        _ => Err(ProviderFailure::Unavailable),
+    };
+    let output = finalize_provider_response(&transcription, response, &profile.output_policy);
     write_processing_output(output)
 }
 

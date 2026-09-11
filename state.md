@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 5 are complete. The repository has its documented layout and a tested Rust workspace with versioned configuration persistence, Raw processing, fallback rules, and a mandatory Secret Service abstraction. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
+Phases 0 through 6 are complete. The engine includes a tested local Ollama adapter with real HTTP transport and process integration. No remote-provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
 
 ## Completed work
 
@@ -90,6 +90,18 @@ Phases 0 through 5 are complete. The repository has its documented layout and a 
 - Added an in-memory `SecretStore` test double. It is limited to tests and is not a file fallback or a production key store.
 - Added tests covering the complete secret lifecycle and secret-free error text.
 
+### 2026-09-11 — Phase 6: Provider interface and Ollama adapter (in progress)
+
+- Added the provider request contract and adapter interface for model discovery, connectivity testing, and text processing.
+- Added the Ollama protocol adapter with default endpoint `http://127.0.0.1:11434`, model discovery through `/api/tags`, and chat processing through `/api/chat`.
+- Added a mock HTTP transport test suite covering installed-model discovery, unavailable Ollama, separate system and user messages, output limits, authentication failures, and HTTP failures.
+- Added `serde_json` for Ollama JSON request and response handling.
+- No Ollama installation or local service is required for the tests. The production HTTP transport and CLI processing integration remain outstanding in this phase.
+- Added the production HTTP transport with explicit timeout and unavailable-service mapping.
+- Integrated configured Ollama profiles into `process`, keeping system prompts and dictated text in separate messages.
+- Implemented `providers test <id>` using a minimal dedicated request rather than a dictated transcription.
+- Completed Phase 6 without installing or starting Ollama locally; unavailable Ollama continues to trigger the existing raw-text fallback.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -126,10 +138,12 @@ Phases 0 through 5 are complete. The repository has its documented layout and a 
 - Ran `cargo fmt --check` after Phase 5; formatting is compliant.
 - Ran `cargo test --workspace` after Phase 5; all 26 tests passed.
 - Ran `git diff --check` after Phase 5; it reported no whitespace errors.
+- Ran `cargo fmt` and `cargo test --workspace` during Phase 6; all 30 tests passed.
+- Ran `cargo fmt --check`, `cargo test --workspace`, and `git diff --check` after completing Phase 6; all 30 tests passed and formatting/diff checks are clean.
 
 ## Next proposed step
 
-Begin Phase 6 of `ROADMAP.md`: define the provider interface and implement the local Ollama adapter. Remote provider work and UI remain out of scope.
+Begin Phase 7 of `ROADMAP.md`: implement the shared OpenAI-compatible provider adapter and preconfigured remote provider metadata. UI remains out of scope.
 
 ## Commit and push status
 

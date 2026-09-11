@@ -6,7 +6,7 @@ The engine receives a local Whisper transcription on standard input and writes o
 
 ## Status
 
-Phase 4 of the roadmap is complete. The engine now has a Rust workspace, persisted configuration, Raw processing, and a centralized fallback and output-validation policy. No provider adapter, plugin, or Voxtype integration has been implemented yet.
+Phase 6 is complete. The engine has a tested Ollama protocol adapter, production HTTP transport, model discovery, unavailable-service detection, and `process` integration.
 
 ## Scope
 
