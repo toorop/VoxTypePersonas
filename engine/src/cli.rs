@@ -1,8 +1,8 @@
 use crate::config::Config;
 use crate::processing::{ProcessingOutput, ProviderFailure, finalize_provider_response};
 use crate::providers::{
-    ProviderAdapter, ProviderRequest, ReqwestTransport, compatible_from_provider,
-    ollama_from_provider,
+    AnthropicAdapter, GeminiAdapter, ProviderAdapter, ProviderRequest, ReqwestTransport,
+    compatible_from_provider, ollama_from_provider,
 };
 use crate::secrets::{SecretRef, SecretServiceStore, SecretStore};
 use crate::storage::ConfigStore;
@@ -185,9 +185,17 @@ fn process(args: ProcessArgs) -> Result<(), CliError> {
                     .and_then(|bytes| {
                         String::from_utf8(bytes).map_err(|_| ProviderFailure::Authentication)
                     });
-                secret.and_then(|api_key| {
-                    compatible_from_provider(provider, api_key, ReqwestTransport)
-                        .and_then(|adapter| adapter.process(&request))
+                secret.and_then(|api_key| match provider.kind {
+                    crate::config::ProviderKind::Anthropic => {
+                        AnthropicAdapter::new(api_key, ReqwestTransport)
+                            .and_then(|adapter| adapter.process(&request))
+                    }
+                    crate::config::ProviderKind::Gemini => {
+                        GeminiAdapter::new(api_key, ReqwestTransport)
+                            .and_then(|adapter| adapter.process(&request))
+                    }
+                    _ => compatible_from_provider(provider, api_key, ReqwestTransport)
+                        .and_then(|adapter| adapter.process(&request)),
                 })
             }
         }

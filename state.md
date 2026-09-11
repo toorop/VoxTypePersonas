@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 7 are complete. The engine supports local Ollama and OpenAI-compatible remote providers with Secret Service-backed keys. No native Anthropic/Gemini adapter, plugin implementation, Voxtype integration, or release tooling has been created.
+Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No plugin implementation, Voxtype integration, or release tooling has been created.
 
 ## Completed work
 
@@ -115,6 +115,13 @@ Phases 0 through 7 are complete. The engine supports local Ollama and OpenAI-com
 - Added endpoint, timeout, remote-secret-reference, and explicit-model validation for provider configuration.
 - Completed Phase 7. The fallback policy handles unavailable keyring access or provider failure by returning the raw transcription.
 
+### 2026-09-11 — Phase 8: Native Anthropic and Gemini adapters
+
+- Added the native Anthropic Messages adapter using the top-level `system` field and a separate `user` message.
+- Added the native Gemini GenerateContent adapter using `system_instruction` and separate `contents`.
+- Both adapters use the existing Secret Service key path, HTTP error mapping, response validation, and raw-text fallback.
+- Added mock transport tests for Anthropic and Gemini request shapes and response parsing.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -155,10 +162,11 @@ Phases 0 through 7 are complete. The engine supports local Ollama and OpenAI-com
 - Ran `cargo fmt --check`, `cargo test --workspace`, and `git diff --check` after completing Phase 6; all 30 tests passed and formatting/diff checks are clean.
 - Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check` during Phase 7; all 33 tests passed and formatting/diff checks are clean.
 - Ran `cargo fmt --check`, `cargo test --workspace`, and `git diff --check` after completing Phase 7; all 33 tests passed and formatting/diff checks are clean.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check` after Phase 8; all 35 tests passed and formatting/diff checks are clean.
 
 ## Next proposed step
 
-Phase 7 is complete. Do not begin Phase 8 until the user explicitly approves it.
+Begin Phase 9 of `ROADMAP.md`: review and finalize the built-in prompt wording and profile rules. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 

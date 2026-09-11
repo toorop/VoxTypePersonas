@@ -8,6 +8,8 @@ pub const OPENAI_ENDPOINT: &str = "https://api.openai.com/v1";
 pub const MISTRAL_ENDPOINT: &str = "https://api.mistral.ai/v1";
 pub const GROQ_ENDPOINT: &str = "https://api.groq.com/openai/v1";
 pub const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1";
+pub const ANTHROPIC_ENDPOINT: &str = "https://api.anthropic.com/v1/messages";
+pub const GEMINI_ENDPOINT: &str = "https://generativelanguage.googleapis.com/v1beta";
 
 pub fn default_endpoint(kind: &ProviderKind) -> Option<&'static str> {
     match kind {
@@ -106,6 +108,103 @@ pub struct ChatCompletionsAdapter<T> {
     endpoint: String,
     api_key: String,
     transport: T,
+}
+
+pub struct AnthropicAdapter<T> {
+    api_key: String,
+    transport: T,
+}
+impl<T> AnthropicAdapter<T> {
+    pub fn new(api_key: String, transport: T) -> Result<Self, ProviderFailure> {
+        if api_key.is_empty() {
+            return Err(ProviderFailure::Authentication);
+        }
+        Ok(Self { api_key, transport })
+    }
+}
+impl<T: HttpTransport> ProviderAdapter for AnthropicAdapter<T> {
+    fn list_models(&self) -> Result<Vec<String>, ProviderFailure> {
+        Err(ProviderFailure::Unavailable)
+    }
+    fn test(&self, model: &str, timeout_ms: u64) -> Result<(), ProviderFailure> {
+        self.process(&ProviderRequest {
+            model: model.to_owned(),
+            system_prompt: "Return only OK.".to_owned(),
+            user_text: "ping".to_owned(),
+            timeout_ms,
+            max_output_tokens: 1,
+        })
+        .map(|_| ())
+    }
+    fn process(&self, request: &ProviderRequest) -> Result<String, ProviderFailure> {
+        let body = serde_json::json!({"model":request.model,"max_tokens":request.max_output_tokens,"system":request.system_prompt,"messages":[{"role":"user","content":request.user_text}]}).to_string();
+        let response = self.transport.send(HttpRequest {
+            method: "POST",
+            path: ANTHROPIC_ENDPOINT.to_owned(),
+            headers: vec![
+                ("x-api-key".to_owned(), self.api_key.clone()),
+                ("anthropic-version".to_owned(), "2023-06-01".to_owned()),
+            ],
+            body: Some(body),
+            timeout_ms: request.timeout_ms,
+        })?;
+        ensure_success(&response)?;
+        let payload: serde_json::Value =
+            serde_json::from_str(&response.body).map_err(|_| ProviderFailure::ResponseParsing)?;
+        payload["content"][0]["text"]
+            .as_str()
+            .map(str::to_owned)
+            .ok_or(ProviderFailure::ResponseParsing)
+    }
+}
+
+pub struct GeminiAdapter<T> {
+    api_key: String,
+    transport: T,
+}
+impl<T> GeminiAdapter<T> {
+    pub fn new(api_key: String, transport: T) -> Result<Self, ProviderFailure> {
+        if api_key.is_empty() {
+            Err(ProviderFailure::Authentication)
+        } else {
+            Ok(Self { api_key, transport })
+        }
+    }
+}
+impl<T: HttpTransport> ProviderAdapter for GeminiAdapter<T> {
+    fn list_models(&self) -> Result<Vec<String>, ProviderFailure> {
+        Err(ProviderFailure::Unavailable)
+    }
+    fn test(&self, model: &str, timeout_ms: u64) -> Result<(), ProviderFailure> {
+        self.process(&ProviderRequest {
+            model: model.to_owned(),
+            system_prompt: "Return only OK.".to_owned(),
+            user_text: "ping".to_owned(),
+            timeout_ms,
+            max_output_tokens: 1,
+        })
+        .map(|_| ())
+    }
+    fn process(&self, request: &ProviderRequest) -> Result<String, ProviderFailure> {
+        let body = serde_json::json!({"system_instruction":{"parts":[{"text":request.system_prompt}]},"contents":[{"role":"user","parts":[{"text":request.user_text}]}],"generationConfig":{"maxOutputTokens":request.max_output_tokens}}).to_string();
+        let response = self.transport.send(HttpRequest {
+            method: "POST",
+            path: format!(
+                "{}/models/{}:generateContent",
+                GEMINI_ENDPOINT, request.model
+            ),
+            headers: vec![("x-goog-api-key".to_owned(), self.api_key.clone())],
+            body: Some(body),
+            timeout_ms: request.timeout_ms,
+        })?;
+        ensure_success(&response)?;
+        let payload: serde_json::Value =
+            serde_json::from_str(&response.body).map_err(|_| ProviderFailure::ResponseParsing)?;
+        payload["candidates"][0]["content"]["parts"][0]["text"]
+            .as_str()
+            .map(str::to_owned)
+            .ok_or(ProviderFailure::ResponseParsing)
+    }
 }
 
 impl<T> ChatCompletionsAdapter<T> {
@@ -554,5 +653,78 @@ mod tests {
             default_endpoint(&ProviderKind::Openrouter),
             Some(OPENROUTER_ENDPOINT)
         );
+    }
+
+    #[test]
+    fn anthropic_uses_top_level_system_and_user_message() {
+        let transport = MockTransport {
+            response: Ok(HttpResponse {
+                status: 200,
+                body: r#"{"content":[{"text":"final"}]}"#.to_owned(),
+            }),
+            requests: RefCell::new(Vec::new()),
+        };
+        let adapter =
+            AnthropicAdapter::new("key".to_owned(), transport).expect("adapter should construct");
+        assert_eq!(
+            adapter
+                .process(&ProviderRequest {
+                    model: "claude".to_owned(),
+                    system_prompt: "system".to_owned(),
+                    user_text: "user".to_owned(),
+                    timeout_ms: 1_000,
+                    max_output_tokens: 2
+                })
+                .expect("response should parse"),
+            "final"
+        );
+        let request = adapter.transport.requests.borrow();
+        assert_eq!(request[0].path, ANTHROPIC_ENDPOINT);
+        assert!(
+            request[0]
+                .body
+                .as_ref()
+                .expect("body")
+                .contains("\"system\":\"system\"")
+        );
+        assert!(
+            request[0]
+                .headers
+                .iter()
+                .any(|(name, _)| name == "x-api-key")
+        );
+    }
+
+    #[test]
+    fn gemini_uses_system_instruction_and_contents() {
+        let transport = MockTransport {
+            response: Ok(HttpResponse {
+                status: 200,
+                body: r#"{"candidates":[{"content":{"parts":[{"text":"final"}]}}]}"#.to_owned(),
+            }),
+            requests: RefCell::new(Vec::new()),
+        };
+        let adapter =
+            GeminiAdapter::new("key".to_owned(), transport).expect("adapter should construct");
+        assert_eq!(
+            adapter
+                .process(&ProviderRequest {
+                    model: "gemini-test".to_owned(),
+                    system_prompt: "system".to_owned(),
+                    user_text: "user".to_owned(),
+                    timeout_ms: 1_000,
+                    max_output_tokens: 2
+                })
+                .expect("response should parse"),
+            "final"
+        );
+        let request = adapter.transport.requests.borrow();
+        assert_eq!(
+            request[0].path,
+            format!("{}/models/gemini-test:generateContent", GEMINI_ENDPOINT)
+        );
+        let body = request[0].body.as_ref().expect("body");
+        assert!(body.contains("system_instruction"));
+        assert!(body.contains("contents"));
     }
 }

@@ -6,7 +6,7 @@ The engine receives a local Whisper transcription on standard input and writes o
 
 ## Status
 
-Phase 7 is complete. The engine has tested OpenAI-compatible provider support for OpenAI, Mistral, Groq, OpenRouter, and named compatible endpoints, with keys read only from Secret Service.
+Phase 8 is complete. The engine supports local Ollama, OpenAI-compatible providers, and native Anthropic and Gemini adapters with keys read only from Secret Service.
 
 ## Scope
 
