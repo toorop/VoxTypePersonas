@@ -4,6 +4,21 @@ use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_OLLAMA_ENDPOINT: &str = "http://127.0.0.1:11434";
 
+pub const OPENAI_ENDPOINT: &str = "https://api.openai.com/v1";
+pub const MISTRAL_ENDPOINT: &str = "https://api.mistral.ai/v1";
+pub const GROQ_ENDPOINT: &str = "https://api.groq.com/openai/v1";
+pub const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1";
+
+pub fn default_endpoint(kind: &ProviderKind) -> Option<&'static str> {
+    match kind {
+        ProviderKind::Openai => Some(OPENAI_ENDPOINT),
+        ProviderKind::Mistral => Some(MISTRAL_ENDPOINT),
+        ProviderKind::Groq => Some(GROQ_ENDPOINT),
+        ProviderKind::Openrouter => Some(OPENROUTER_ENDPOINT),
+        _ => None,
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProviderRequest {
     pub model: String,
@@ -27,6 +42,7 @@ pub trait HttpTransport {
 pub struct HttpRequest {
     pub method: &'static str,
     pub path: String,
+    pub headers: Vec<(String, String)>,
     pub body: Option<String>,
     pub timeout_ms: u64,
 }
@@ -53,6 +69,17 @@ impl HttpTransport for ReqwestTransport {
         };
         let response = request_builder
             .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .headers(
+                request
+                    .headers
+                    .iter()
+                    .filter_map(|(name, value)| {
+                        let name = reqwest::header::HeaderName::from_bytes(name.as_bytes()).ok()?;
+                        let value = reqwest::header::HeaderValue::from_str(value).ok()?;
+                        Some((name, value))
+                    })
+                    .collect(),
+            )
             .body(request.body.unwrap_or_default())
             .send()
             .map_err(|error| {
@@ -73,6 +100,147 @@ impl HttpTransport for ReqwestTransport {
 pub struct OllamaAdapter<T> {
     endpoint: String,
     transport: T,
+}
+
+pub struct ChatCompletionsAdapter<T> {
+    endpoint: String,
+    api_key: String,
+    transport: T,
+}
+
+impl<T> ChatCompletionsAdapter<T> {
+    pub fn new(endpoint: &str, api_key: String, transport: T) -> Result<Self, ProviderFailure> {
+        if !(endpoint.starts_with("https://") || endpoint.starts_with("http://")) {
+            return Err(ProviderFailure::Unavailable);
+        }
+        if api_key.is_empty() {
+            return Err(ProviderFailure::Authentication);
+        }
+        Ok(Self {
+            endpoint: endpoint.trim_end_matches('/').to_owned(),
+            api_key,
+            transport,
+        })
+    }
+
+    fn headers(&self) -> Vec<(String, String)> {
+        vec![(
+            "authorization".to_owned(),
+            format!("Bearer {}", self.api_key),
+        )]
+    }
+}
+
+impl<T: HttpTransport> ProviderAdapter for ChatCompletionsAdapter<T> {
+    fn list_models(&self) -> Result<Vec<String>, ProviderFailure> {
+        let response = self.transport.send(HttpRequest {
+            method: "GET",
+            path: format!("{}/models", self.endpoint),
+            headers: self.headers(),
+            body: None,
+            timeout_ms: 10_000,
+        })?;
+        ensure_success(&response)?;
+        let payload: OpenAiModelsResponse =
+            serde_json::from_str(&response.body).map_err(|_| ProviderFailure::ResponseParsing)?;
+        Ok(payload
+            .data
+            .into_iter()
+            .map(|model| model.id)
+            .filter(|id| is_text_model(id))
+            .collect())
+    }
+
+    fn test(&self, model: &str, timeout_ms: u64) -> Result<(), ProviderFailure> {
+        self.process(&ProviderRequest {
+            model: model.to_owned(),
+            system_prompt: "Return only OK.".to_owned(),
+            user_text: "ping".to_owned(),
+            timeout_ms,
+            max_output_tokens: 1,
+        })
+        .map(|_| ())
+    }
+
+    fn process(&self, request: &ProviderRequest) -> Result<String, ProviderFailure> {
+        let body = serde_json::to_string(&OpenAiChatRequest {
+            model: &request.model,
+            messages: vec![
+                OpenAiMessage {
+                    role: "system",
+                    content: &request.system_prompt,
+                },
+                OpenAiMessage {
+                    role: "user",
+                    content: &request.user_text,
+                },
+            ],
+            max_tokens: request.max_output_tokens,
+        })
+        .map_err(|_| ProviderFailure::ResponseParsing)?;
+        let response = self.transport.send(HttpRequest {
+            method: "POST",
+            path: format!("{}/chat/completions", self.endpoint),
+            headers: self.headers(),
+            body: Some(body),
+            timeout_ms: request.timeout_ms,
+        })?;
+        ensure_success(&response)?;
+        let payload: OpenAiChatResponse =
+            serde_json::from_str(&response.body).map_err(|_| ProviderFailure::ResponseParsing)?;
+        payload
+            .choices
+            .into_iter()
+            .next()
+            .map(|choice| choice.message.content)
+            .ok_or(ProviderFailure::ResponseParsing)
+    }
+}
+
+fn is_text_model(id: &str) -> bool {
+    let lower = id.to_ascii_lowercase();
+    ![
+        "image",
+        "audio",
+        "whisper",
+        "tts",
+        "embedding",
+        "moderation",
+    ]
+    .iter()
+    .any(|term| lower.contains(term))
+}
+
+#[derive(Deserialize)]
+struct OpenAiModelsResponse {
+    data: Vec<OpenAiModel>,
+}
+#[derive(Deserialize)]
+struct OpenAiModel {
+    id: String,
+}
+#[derive(Deserialize)]
+struct OpenAiChatResponse {
+    choices: Vec<OpenAiChoice>,
+}
+#[derive(Deserialize)]
+struct OpenAiChoice {
+    message: OpenAiResponseMessage,
+}
+#[derive(Deserialize)]
+struct OpenAiResponseMessage {
+    content: String,
+}
+#[derive(Serialize)]
+struct OpenAiChatRequest<'a> {
+    model: &'a str,
+    messages: Vec<OpenAiMessage<'a>>,
+    max_tokens: u32,
+}
+#[derive(Serialize)]
+struct OpenAiMessage<'a> {
+    role: &'a str,
+    content: &'a str,
 }
 
 impl<T> OllamaAdapter<T> {
@@ -96,6 +264,7 @@ impl<T: HttpTransport> ProviderAdapter for OllamaAdapter<T> {
         let response = self.transport.send(HttpRequest {
             method: "GET",
             path: format!("{}/api/tags", self.endpoint),
+            headers: Vec::new(),
             body: None,
             timeout_ms: 5_000,
         })?;
@@ -138,6 +307,7 @@ impl<T: HttpTransport> ProviderAdapter for OllamaAdapter<T> {
         let response = self.transport.send(HttpRequest {
             method: "POST",
             path: format!("{}/api/chat", self.endpoint),
+            headers: Vec::new(),
             body: Some(body),
             timeout_ms: request.timeout_ms,
         })?;
@@ -156,6 +326,28 @@ pub fn ollama_from_provider<T>(
         return Err(ProviderFailure::Unavailable);
     }
     Ok(OllamaAdapter::new(provider.endpoint.as_deref(), transport))
+}
+
+pub fn compatible_from_provider<T>(
+    provider: &Provider,
+    api_key: String,
+    transport: T,
+) -> Result<ChatCompletionsAdapter<T>, ProviderFailure> {
+    let endpoint = provider
+        .endpoint
+        .as_deref()
+        .or_else(|| default_endpoint(&provider.kind))
+        .ok_or(ProviderFailure::Unavailable)?;
+    match provider.kind {
+        ProviderKind::Openai
+        | ProviderKind::Mistral
+        | ProviderKind::Groq
+        | ProviderKind::Openrouter
+        | ProviderKind::OpenaiCompatible => {
+            ChatCompletionsAdapter::new(endpoint, api_key, transport)
+        }
+        _ => Err(ProviderFailure::Unavailable),
+    }
 }
 
 fn ensure_success(response: &HttpResponse) -> Result<(), ProviderFailure> {
@@ -285,6 +477,82 @@ mod tests {
         assert_eq!(
             ensure_success(&unavailable),
             Err(ProviderFailure::HttpStatus(503))
+        );
+    }
+
+    #[test]
+    fn compatible_adapter_filters_non_text_models() {
+        let transport = MockTransport {
+            response: Ok(HttpResponse {
+                status: 200,
+                body:
+                    r#"{"data":[{"id":"gpt-text"},{"id":"whisper-1"},{"id":"text-embedding-3"}]}"#
+                        .to_owned(),
+            }),
+            requests: RefCell::new(Vec::new()),
+        };
+        let adapter =
+            ChatCompletionsAdapter::new(OPENAI_ENDPOINT, "private-key".to_owned(), transport)
+                .expect("adapter should construct");
+        assert_eq!(
+            adapter.list_models().expect("models should parse"),
+            ["gpt-text"]
+        );
+        let request = adapter.transport.requests.borrow();
+        assert_eq!(request[0].headers[0].0, "authorization");
+        assert_eq!(request[0].headers[0].1, "Bearer private-key");
+    }
+
+    #[test]
+    fn compatible_adapter_sends_separate_messages() {
+        let transport = MockTransport {
+            response: Ok(HttpResponse {
+                status: 200,
+                body: r#"{"choices":[{"message":{"content":"final"}}]}"#.to_owned(),
+            }),
+            requests: RefCell::new(Vec::new()),
+        };
+        let adapter = ChatCompletionsAdapter::new(
+            "https://example.test/v1",
+            "private-key".to_owned(),
+            transport,
+        )
+        .expect("adapter should construct");
+        assert_eq!(
+            adapter
+                .process(&ProviderRequest {
+                    model: "text-model".to_owned(),
+                    system_prompt: "system".to_owned(),
+                    user_text: "user".to_owned(),
+                    timeout_ms: 1000,
+                    max_output_tokens: 2
+                })
+                .expect("response should parse"),
+            "final"
+        );
+        let body = adapter.transport.requests.borrow()[0]
+            .body
+            .clone()
+            .expect("request body should exist");
+        assert!(body.contains("\"system\""));
+        assert!(body.contains("\"user\""));
+        assert!(body.contains("\"max_tokens\":2"));
+    }
+
+    #[test]
+    fn built_in_endpoints_are_stable() {
+        assert_eq!(
+            default_endpoint(&ProviderKind::Openai),
+            Some(OPENAI_ENDPOINT)
+        );
+        assert_eq!(
+            default_endpoint(&ProviderKind::Mistral),
+            Some(MISTRAL_ENDPOINT)
+        );
+        assert_eq!(default_endpoint(&ProviderKind::Groq), Some(GROQ_ENDPOINT));
+        assert_eq!(
+            default_endpoint(&ProviderKind::Openrouter),
+            Some(OPENROUTER_ENDPOINT)
         );
     }
 }

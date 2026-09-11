@@ -6,7 +6,7 @@ The engine receives a local Whisper transcription on standard input and writes o
 
 ## Status
 
-Phase 6 is complete. The engine has a tested Ollama protocol adapter, production HTTP transport, model discovery, unavailable-service detection, and `process` integration.
+Phase 7 is complete. The engine has tested OpenAI-compatible provider support for OpenAI, Mistral, Groq, OpenRouter, and named compatible endpoints, with keys read only from Secret Service.
 
 ## Scope
 

@@ -1,6 +1,10 @@
 use crate::config::Config;
 use crate::processing::{ProcessingOutput, ProviderFailure, finalize_provider_response};
-use crate::providers::{ProviderAdapter, ProviderRequest, ReqwestTransport, ollama_from_provider};
+use crate::providers::{
+    ProviderAdapter, ProviderRequest, ReqwestTransport, compatible_from_provider,
+    ollama_from_provider,
+};
+use crate::secrets::{SecretRef, SecretServiceStore, SecretStore};
 use crate::storage::ConfigStore;
 use clap::{Args, Parser, Subcommand};
 use std::fs;
@@ -154,15 +158,38 @@ fn process(args: ProcessArgs) -> Result<(), CliError> {
             let user_text = String::from_utf8(transcription.clone()).map_err(|_| {
                 CliError::NotImplemented("provider processing requires UTF-8 input".to_owned())
             })?;
-            ollama_from_provider(provider, ReqwestTransport).and_then(|adapter| {
-                adapter.process(&ProviderRequest {
-                    model: model.clone(),
-                    system_prompt: prompt.system.clone(),
-                    user_text,
-                    timeout_ms: profile.timeout_ms,
-                    max_output_tokens: profile.max_output_tokens,
+            let request = ProviderRequest {
+                model: model.clone(),
+                system_prompt: prompt.system.clone(),
+                user_text,
+                timeout_ms: profile.timeout_ms,
+                max_output_tokens: profile.max_output_tokens,
+            };
+            if provider.kind == crate::config::ProviderKind::Ollama {
+                ollama_from_provider(provider, ReqwestTransport)
+                    .and_then(|adapter| adapter.process(&request))
+            } else {
+                let secret = provider
+                    .secret_ref
+                    .as_deref()
+                    .ok_or(ProviderFailure::Authentication)
+                    .and_then(|reference| {
+                        SecretRef::from_config(reference)
+                            .map_err(|_| ProviderFailure::Authentication)
+                    })
+                    .and_then(|reference| {
+                        SecretServiceStore::new()
+                            .read(&reference)
+                            .map_err(|_| ProviderFailure::Authentication)
+                    })
+                    .and_then(|bytes| {
+                        String::from_utf8(bytes).map_err(|_| ProviderFailure::Authentication)
+                    });
+                secret.and_then(|api_key| {
+                    compatible_from_provider(provider, api_key, ReqwestTransport)
+                        .and_then(|adapter| adapter.process(&request))
                 })
-            })
+            }
         }
         _ => Err(ProviderFailure::Unavailable),
     };

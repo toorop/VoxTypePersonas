@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 6 are complete. The engine includes a tested local Ollama adapter with real HTTP transport and process integration. No remote-provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
+Phases 0 through 7 are complete. The engine supports local Ollama and OpenAI-compatible remote providers with Secret Service-backed keys. No native Anthropic/Gemini adapter, plugin implementation, Voxtype integration, or release tooling has been created.
 
 ## Completed work
 
@@ -102,6 +102,19 @@ Phases 0 through 6 are complete. The engine includes a tested local Ollama adapt
 - Implemented `providers test <id>` using a minimal dedicated request rather than a dictated transcription.
 - Completed Phase 6 without installing or starting Ollama locally; unavailable Ollama continues to trigger the existing raw-text fallback.
 
+### 2026-09-11 — Phase 7: OpenAI-compatible providers (in progress)
+
+- Added a shared Chat Completions-compatible adapter for OpenAI, Mistral, Groq, OpenRouter, and named OpenAI-compatible endpoints.
+- Added fixed endpoint metadata for OpenAI, Mistral, Groq, and OpenRouter.
+- Extended the HTTP transport with explicit request headers and implemented Bearer authorization support in the compatible adapter.
+- Added model-list parsing and filtering for image, audio, transcription, TTS, embedding, and moderation-only model identifiers.
+- Added mock transport tests for authorization headers, separate system/user messages, maximum output tokens, endpoint metadata, model filtering, and HTTP error mapping.
+- The adapter does not yet read API keys from Secret Service during normal CLI processing; that integration remains required before remote providers can be configured and used.
+- Added the concrete Linux Secret Service D-Bus adapter using the `secret-service` crate and its Tokio/RustCrypto runtime feature.
+- Connected remote provider execution to opaque Secret Service references only; API keys are never read from TOML or emitted in diagnostics.
+- Added endpoint, timeout, remote-secret-reference, and explicit-model validation for provider configuration.
+- Completed Phase 7. The fallback policy handles unavailable keyring access or provider failure by returning the raw transcription.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -140,10 +153,12 @@ Phases 0 through 6 are complete. The engine includes a tested local Ollama adapt
 - Ran `git diff --check` after Phase 5; it reported no whitespace errors.
 - Ran `cargo fmt` and `cargo test --workspace` during Phase 6; all 30 tests passed.
 - Ran `cargo fmt --check`, `cargo test --workspace`, and `git diff --check` after completing Phase 6; all 30 tests passed and formatting/diff checks are clean.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check` during Phase 7; all 33 tests passed and formatting/diff checks are clean.
+- Ran `cargo fmt --check`, `cargo test --workspace`, and `git diff --check` after completing Phase 7; all 33 tests passed and formatting/diff checks are clean.
 
 ## Next proposed step
 
-Begin Phase 7 of `ROADMAP.md`: implement the shared OpenAI-compatible provider adapter and preconfigured remote provider metadata. UI remains out of scope.
+Phase 7 is complete. Do not begin Phase 8 until the user explicitly approves it.
 
 ## Commit and push status
 

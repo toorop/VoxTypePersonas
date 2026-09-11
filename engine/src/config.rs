@@ -203,6 +203,24 @@ impl Config {
                     "provider '{id}' contains an empty model identifier"
                 ));
             }
+            if let Some(endpoint) = &provider.endpoint {
+                if !(endpoint.starts_with("https://") || endpoint.starts_with("http://")) {
+                    errors.push(format!("provider '{id}' has an invalid endpoint URL"));
+                }
+            }
+            if matches!(
+                provider.kind,
+                ProviderKind::Openai
+                    | ProviderKind::Mistral
+                    | ProviderKind::Groq
+                    | ProviderKind::Openrouter
+                    | ProviderKind::OpenaiCompatible
+            ) && provider.secret_ref.as_deref().is_none_or(str::is_empty)
+            {
+                errors.push(format!(
+                    "provider '{id}' requires a Secret Service reference"
+                ));
+            }
         }
 
         for (id, prompt) in &self.prompts {
