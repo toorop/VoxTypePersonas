@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phase 0, Repository baseline, is complete. The repository has its documented layout and contributor-facing project files. No application code, plugin implementation, Rust workspace, provider integration, or release tooling has been created.
+Phases 0 and 1 are complete. The repository has its documented layout and a tested Rust workspace with a versioned configuration contract and CLI skeleton. No provider adapter, plugin implementation, Voxtype integration, or release tooling has been created.
 
 ## Completed work
 
@@ -35,6 +35,18 @@ Phase 0, Repository baseline, is complete. The repository has its documented lay
 - This does not change the v1 scope: importing/exporting prompts and community sharing remain deferred.
 - Committed this recorded decision with message `docs: record shared prompt catalog idea`.
 
+### 2026-09-11 — Phase 1: Configuration contract and Rust workspace
+
+- Created the Cargo workspace and the `engine` package for the `voxtype-personas` binary.
+- Added a CLI skeleton for `version`, `process`, `profiles list`, `profiles set-active`, `providers test`, and `config validate`.
+- Implemented `version` and `config validate`; commands planned for later phases return an explicit phase-specific unavailable message.
+- Defined configuration schema version 1 with typed providers, prompts, profiles, active profile, and execution limits.
+- Added all v1 provider kinds to the configuration model: Ollama, OpenAI, Mistral, Groq, OpenRouter, Anthropic, Gemini, and OpenAI-compatible endpoints.
+- Defined the built-in Raw, Chat, Email, Technical, and Meeting / Notes profiles. Raw is the default active profile and has no provider, model, or prompt reference.
+- Added XDG path discovery for configuration, state, engine installation, temporary downloads, backups, and logs. Managed directories use owner-only permissions on Unix.
+- Added tests for default configuration, TOML round-tripping, duplicate TOML profile definitions, unsupported schema versions, invalid active profiles, invalid provider references without secret disclosure, XDG path resolution, and private directory permissions.
+- Added `Cargo.lock` for reproducible dependency resolution.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -51,11 +63,15 @@ Phase 0, Repository baseline, is complete. The repository has its documented lay
 - Confirmed that the repository instructions are stored in root-level `AGENTS.md`.
 - Confirmed the documentation consists of `docs/VoxTypePersonas.md` and `docs/specs.md`.
 - Ran `git diff --check` after Phase 0; it reported no whitespace errors.
-- No implementation or runtime validation has been performed because the project is intentionally still in planning.
+- Ran `cargo fmt --check`; formatting is compliant.
+- Ran `cargo test --workspace`; all 10 tests passed.
+- Ran `voxtype-personas version`, `voxtype-personas config validate --defaults`, and the CLI help output successfully.
+- Confirmed `voxtype-personas profiles list` exits with the expected explicit unavailable message until Phase 2.
+- Ran `git diff --check` after Phase 1; it reported no whitespace errors.
 
 ## Next proposed step
 
-Begin Phase 1 of `ROADMAP.md`: create the Rust workspace and define the versioned configuration and CLI contracts, without provider networking or UI work.
+Begin Phase 2 of `ROADMAP.md`: implement atomic configuration persistence, first-run defaults, schema migration scaffolding, and persisted profile selection. Provider networking and UI work remain out of scope.
 
 ## Commit and push status
 

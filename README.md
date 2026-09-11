@@ -6,7 +6,7 @@ The engine receives a local Whisper transcription on standard input and writes o
 
 ## Status
 
-The project is in its repository-baseline phase. No engine, plugin, provider adapter, or Voxtype integration has been implemented yet.
+Phase 1 of the roadmap is complete: the Rust workspace, configuration contract, path model, and CLI skeleton are established. No provider adapter, plugin, or Voxtype integration has been implemented yet.
 
 ## Scope
 
@@ -53,7 +53,11 @@ The project is in its repository-baseline phase. No engine, plugin, provider ada
 └── README.md               Project overview and user-facing documentation
 ```
 
-The directories above are intentionally empty until their corresponding roadmap phase begins.
+The directories above are populated only when their corresponding roadmap phase begins.
+
+## Development prerequisites
+
+Phase 1 requires a current Rust toolchain with Cargo. Future phases will additionally document the exact Omarchy/Quickshell validation tools, Secret Service requirements, Minisign tooling, and CI environment. No development dependency is installed automatically by this repository.
 
 ## Development plan
 
