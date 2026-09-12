@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 10 are complete. Phase 10 is ready to commit and push: the Omarchy bar widget, anchored selector, unavailable-engine onboarding shell, and selected theme-tinted persona icon have been visually reviewed in a live Omarchy session. Phase 11 — secure engine discovery, installation, and rollback — is next. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
+Phases 0 through 10 are complete and pushed to `origin/main`. The Omarchy bar widget, anchored selector, unavailable-engine onboarding shell, and selected theme-tinted persona icon have been visually reviewed in a live Omarchy session. Phase 11 — secure engine discovery, installation, and rollback — is next. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
 
 ## Completed work
 
@@ -382,6 +382,7 @@ Phases 0 through 10 are complete. Phase 10 is ready to commit and push: the Omar
 - The user visually confirmed the selected `persona-spark-solid.svg` icon in the active Omarchy bar. It is now correctly tinted with the theme's urgent colour while the engine is unavailable.
 - Removed the five unselected icon candidates; `assets/icons/persona-spark-solid.svg` is the sole retained project icon asset.
 - Phase 10 acceptance is satisfied for the widget foundation: the manifest validates, the widget renders and anchors its own panel, the engine CLI integration and profile selection paths are implemented, and unavailable-engine onboarding is clear without claiming a failure state in the bar. End-to-end profile selection awaits the installed engine delivered by Phase 11.
+- Committed Phase 10 as `743cc71 feat: complete Omarchy widget foundation` and pushed it to `origin/main`.
 
 ## Decisions currently in force
 
