@@ -140,6 +140,14 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Activation gating, explicit Draft/Ready/Active status reporting, and validated import/export remain outstanding Phase 9 work.
 - Ran `cargo fmt --check`, `cargo test --workspace`, and `git diff --check`; formatting and diff checks are clean, and all 35 tests pass.
 
+### 2026-09-12 — Specification alignment
+
+- Rewrote `docs/specs.md` in English to comply with the repository documentation convention.
+- Removed superseded references to built-in Chat, Email, Technical, and Meeting / Notes profiles and to profile import/export being outside v1.
+- Made the v1 contract explicit: Raw is the only active default, Example is a portable Draft, only Ready profiles can be activated, and portable Markdown/YAML profile import/export must be validated atomically.
+- Updated the quick-selection journey, CLI contract, data model, privacy/export rules, and acceptance criteria to match the Phase 9 catalog and readiness decision.
+- No engine or plugin code was changed.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
