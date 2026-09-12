@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.toorop.voxtype-personas",
+  "name": "VoxTypePersonas",
+  "version": "0.1.0",
+  "author": "Stéphane Depierrepont",
+  "license": "MIT",
+  "description": "Select and configure Voxtype post-processing profiles from the Omarchy bar.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "VoxTypePersonas",
+    "category": "Utilities",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

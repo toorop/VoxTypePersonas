@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 9 are complete and Phase 9 is awaiting user validation, its final review commit, and the requested push. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No plugin implementation, Voxtype integration, or release tooling has been created.
+Phases 0 through 9 are complete and have been pushed to `origin/main`. Phase 10 is in progress: the current Omarchy plugin contract has been reviewed, but no plugin source has been created. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
 
 ## Completed work
 
@@ -243,6 +243,33 @@ Phases 0 through 9 are complete and Phase 9 is awaiting user validation, its fin
 - Ran `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, `cargo test --workspace`, and `git diff --check`; all checks passed, with 49 unit tests and 12 integration tests.
 - The Phase 9 review was committed as `5c21a16` (`chore: complete phase 9 review`) and the complete Phase 9 history was pushed to `origin/main`.
 
+### 2026-09-12 — Phase 10: Omarchy plugin contract review
+
+- Reviewed the current stable Omarchy development and publishing guides before creating plugin files.
+- Confirmed the fixed contract for this project: `kinds` must contain only `bar-widget`; `entryPoints.barWidget` must reference `BarWidget.qml`; and `Panel.qml` must be loaded internally by the widget rather than declared as a second plugin kind.
+- Confirmed that plugins share the long-running shell process, run unsandboxed with user permissions, and must never start a second Quickshell process.
+- Recorded the required lifecycle surface for the entry point: forward `opened`, `open()`, `close()`, `toggle()`, and `closeForPopoutSwitch()` to the loaded panel; inject the bar, anchor button, and host widget into that panel.
+- Recorded the validation commands for the next implementation step: `omarchy plugin validate <plugin-dir>` and `qmllint -I "$OMARCHY_PATH/shell" <plugin-dir>/BarWidget.qml <plugin-dir>/Panel.qml`.
+- No plugin manifest, QML source, system configuration, or Omarchy installation was changed in this review step.
+
+### 2026-09-12 — Phase 10: bar-widget manifest (in progress)
+
+- Added the repository-root `manifest.json` for plugin ID `io.github.toorop.voxtype-personas`.
+- Declared only `kinds: ["bar-widget"]`, with `entryPoints.barWidget` set to `BarWidget.qml`; no standalone panel kind was declared.
+- Added non-invasive bar-widget metadata: a single instance in the right bar section, a user-facing name, MIT license, author, and concise description.
+- Validated JSON syntax with `jq empty manifest.json`.
+- Ran `omarchy plugin validate .`; it correctly reached the manifest entry-point check and reported that `BarWidget.qml` does not exist yet. This expected failure will be resolved by the next approved sub-step; no system configuration was changed.
+
+### 2026-09-12 — Phase 10: BarWidget entry point (in progress)
+
+- Added `BarWidget.qml` as the manifest entry point, using the current Omarchy `BarWidget` and `WidgetButton` contract.
+- Implemented the required forwarding surface for the nested panel: `opened`, `popoutSwitchClosing`, `open()`, `close()`, `toggle()`, `closeForPopoutSwitch()`, and bar/anchor/host injection when the panel loads.
+- Added a static `Raw` label and a left-click toggle. Dynamic engine state and profile selection are intentionally deferred to later approved sub-steps.
+- Kept `Panel.qml` internal through a `Loader`; it is not declared as a second plugin kind.
+- Ran `omarchy plugin validate .` successfully after adding the entry point. `qmllint` is installed as `/usr/lib/qt6/bin/qmllint` through the existing `qt6-declarative` package, but is not on `PATH`.
+- Ran `/usr/lib/qt6/bin/qmllint -I /usr/share/omarchy/shell BarWidget.qml`. The installed linter did not resolve Omarchy's nonstandard `qs.Ui` module layout and therefore emitted unresolved-type warnings; this is an environment/tooling limitation to revisit before final plugin validation, not a reason to install a duplicate package.
+- Ran `git diff --check`; no whitespace errors were found.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -287,7 +314,7 @@ Phases 0 through 9 are complete and Phase 9 is awaiting user validation, its fin
 
 ## Next proposed step
 
-After user validation, commit the Phase 9 completion review changes and push the complete Phase 9 history to `origin/main`, as explicitly requested. Then begin Phase 10 only after a new explicit user approval.
+Complete the next small Phase 10 step: add `Panel.qml` as the widget-owned anchored panel, with static Raw and Example Draft rows plus Escape-to-close behavior. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 
