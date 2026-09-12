@@ -428,7 +428,7 @@ Phases 0 through 10 are complete and pushed to `origin/main`. The Omarchy bar wi
 
 ## Next proposed step
 
-Visually review `persona-spark-solid.svg` rendered as the theme-tinted active bar icon. Keep all candidate SVGs until a final icon decision is confirmed. Do not install the release engine or modify Voxtype configuration during this Phase 10 test.
+Begin Phase 11 only after explicit user approval. First define and review the release channel, embedded Minisign public key, archive naming, and version-comparison policy before adding any installation UI or downloading an engine asset.
 
 ## Commit and push status
 
