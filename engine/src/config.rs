@@ -199,10 +199,10 @@ impl Config {
                     "provider '{id}' contains an empty model identifier"
                 ));
             }
-            if let Some(endpoint) = &provider.endpoint {
-                if !(endpoint.starts_with("https://") || endpoint.starts_with("http://")) {
-                    errors.push(format!("provider '{id}' has an invalid endpoint URL"));
-                }
+            if let Some(endpoint) = &provider.endpoint
+                && !(endpoint.starts_with("https://") || endpoint.starts_with("http://"))
+            {
+                errors.push(format!("provider '{id}' has an invalid endpoint URL"));
             }
             if provider.kind.requires_secret() {
                 match provider.secret_ref.as_deref() {

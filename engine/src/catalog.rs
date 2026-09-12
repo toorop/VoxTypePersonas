@@ -205,10 +205,10 @@ fn validate_portable_profile(profile: &PortableProfile) -> Result<(), CatalogErr
     {
         return Err(CatalogError::InvalidField("model family"));
     }
-    if let Some(endpoint) = &profile.provider.endpoint {
-        if !(endpoint.starts_with("https://") || endpoint.starts_with("http://")) {
-            return Err(CatalogError::InvalidField("provider endpoint"));
-        }
+    if let Some(endpoint) = &profile.provider.endpoint
+        && !(endpoint.starts_with("https://") || endpoint.starts_with("http://"))
+    {
+        return Err(CatalogError::InvalidField("provider endpoint"));
     }
     if profile
         .provider

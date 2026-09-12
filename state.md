@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No plugin implementation, Voxtype integration, or release tooling has been created.
+Phases 0 through 9 are complete and Phase 9 is awaiting user validation, its final review commit, and the requested push. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No plugin implementation, Voxtype integration, or release tooling has been created.
 
 ## Completed work
 
@@ -233,6 +233,16 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Added success and failure tests proving verification behavior and byte-for-byte configuration preservation on failed activation.
 - Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 49 unit tests and 12 integration tests passed and formatting/diff checks are clean.
 
+### 2026-09-12 — Phase 9 completion review (awaiting validation)
+
+- Reviewed every Phase 9 roadmap item and its acceptance criteria against the implementation, catalog documentation, and functional specification.
+- Confirmed the shipped configuration contains Raw and Example only; Example is a non-activatable Draft, and Raw remains the active default and fallback.
+- Confirmed portable Markdown/YAML parsing, safe validation, duplicate-ID checks, atomic Draft import, safe create-new export, and Secret Service verification on remote activation are covered by tests.
+- Rewrote `docs/VoxTypePersonas.md` in English and removed its superseded profile/import-export decisions, so project documentation now follows the repository English-only convention.
+- Fixed two Clippy `collapsible_if` warnings discovered during the review.
+- Ran `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, `cargo test --workspace`, and `git diff --check`; all checks passed, with 49 unit tests and 12 integration tests.
+- The final review changes are not committed yet. The branch is 11 commits ahead of `origin/main`; no push has been made.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -277,7 +287,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: perform a Phase 9 completion review against the roadmap and specifications, close any documentation gaps, and prepare the phase for final validation and the requested push. Do not begin until the user explicitly approves it.
+After user validation, commit the Phase 9 completion review changes and push the complete Phase 9 history to `origin/main`, as explicitly requested. Then begin Phase 10 only after a new explicit user approval.
 
 ## Commit and push status
 
