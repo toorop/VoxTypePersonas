@@ -129,7 +129,9 @@ fn process(args: ProcessArgs) -> Result<(), CliError> {
         Ok(config) => config,
         Err(error) => return preserve_raw_and_fail(&transcription, CliError::Store(error)),
     };
-    let profile_id = args.profile.unwrap_or(config.active_profile);
+    let profile_id = args
+        .profile
+        .unwrap_or_else(|| config.active_profile.clone());
     let profile = match config.profiles.get(&profile_id) {
         Some(profile) => profile,
         None => return preserve_raw_and_fail(&transcription, CliError::UnknownProfile),
@@ -137,6 +139,12 @@ fn process(args: ProcessArgs) -> Result<(), CliError> {
 
     if profile_id == crate::config::RAW_PROFILE_ID {
         return write_pasteable_output(&transcription);
+    }
+    if config.profile_state(&profile_id) == Some(crate::config::ProfileState::Draft) {
+        return write_raw_fallback(
+            &transcription,
+            "voxtype-personas: selected profile is not ready; returned Raw profile output",
+        );
     }
 
     let response = match (&profile.provider, &profile.model, &profile.prompt) {
@@ -221,6 +229,12 @@ fn write_processing_output(output: ProcessingOutput) -> Result<(), CliError> {
     if output.fallback_reason().is_some() {
         eprintln!("voxtype-personas: post-processing was unavailable; returned raw transcription");
     }
+    Ok(())
+}
+
+fn write_raw_fallback(output: &[u8], diagnostic: &str) -> Result<(), CliError> {
+    write_pasteable_output(output)?;
+    eprintln!("{diagnostic}");
     Ok(())
 }
 

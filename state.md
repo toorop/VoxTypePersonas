@@ -158,6 +158,13 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Added unit and integration coverage for Draft, Ready, and Active states, CLI list output, and rejected Draft activation.
 - Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 35 tests passed and formatting/diff checks are clean.
 
+### 2026-09-12 — Phase 9: unready active-profile fallback (in progress)
+
+- Kept an existing configuration loadable when its persisted active profile is now Draft, so it can be recovered safely rather than becoming an unusable configuration error.
+- Updated `process` to resolve a selected Draft profile to byte-preserving Raw output with a zero exit status and a fixed non-sensitive diagnostic.
+- Added an integration test that simulates a persisted Draft active profile and proves raw output preservation, successful exit status, and the absence of dictated text from diagnostics.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 35 unit tests and 7 integration tests passed and formatting/diff checks are clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -202,7 +209,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: make an active profile that becomes unready resolve safely to Raw during processing, with a non-sensitive diagnostic. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: define and validate the portable Markdown plus YAML-front-matter profile format, beginning with parsing and safety validation only. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 

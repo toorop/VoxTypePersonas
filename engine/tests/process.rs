@@ -97,6 +97,37 @@ fn draft_profile_activation_is_rejected_without_changing_configuration() {
 }
 
 #[test]
+fn persisted_draft_active_profile_falls_back_to_raw_output() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+    let first_run = run_process(&root, &["process"], b"");
+    assert!(first_run.status.success());
+
+    let config_path = root.path().join("config/voxtype-personas/config.toml");
+    let configuration = fs::read_to_string(&config_path).expect("configuration should exist");
+    fs::write(
+        &config_path,
+        configuration.replacen(
+            "active_profile = \"raw\"",
+            "active_profile = \"example\"",
+            1,
+        ),
+    )
+    .expect("fixture configuration should be written");
+    let input = b"private dictated content";
+
+    let output = run_process(&root, &["process"], input);
+
+    assert!(output.status.success());
+    assert_eq!(output.stdout, input);
+    let diagnostic = String::from_utf8(output.stderr).expect("diagnostic should be UTF-8");
+    assert_eq!(
+        diagnostic,
+        "voxtype-personas: selected profile is not ready; returned Raw profile output\n"
+    );
+    assert!(!diagnostic.contains("private dictated content"));
+}
+
+#[test]
 fn unavailable_profile_preserves_raw_output_and_keeps_input_out_of_diagnostics() {
     let root = tempfile::tempdir().expect("temporary XDG root should exist");
     let input = b"private dictated content";

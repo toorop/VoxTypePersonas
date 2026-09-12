@@ -180,8 +180,6 @@ impl Config {
 
         if !self.profiles.contains_key(&self.active_profile) {
             errors.push("the active profile does not exist".to_owned());
-        } else if self.profile_state(&self.active_profile) == Some(ProfileState::Draft) {
-            errors.push("the active profile is not ready".to_owned());
         }
 
         for (id, provider) in &self.providers {
@@ -443,14 +441,12 @@ mod tests {
     }
 
     #[test]
-    fn draft_profile_cannot_be_active_in_a_valid_configuration() {
+    fn draft_profile_can_remain_persisted_for_safe_raw_fallback() {
         let mut config = Config::defaults();
         config.active_profile = "example".to_owned();
 
-        let error = config
-            .validate()
-            .expect_err("draft profiles must not be active");
-        assert!(error.to_string().contains("active profile is not ready"));
+        assert!(config.validate().is_ok());
+        assert_eq!(config.profile_state("example"), Some(ProfileState::Draft));
     }
 
     #[test]
