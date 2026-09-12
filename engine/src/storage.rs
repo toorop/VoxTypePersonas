@@ -1,4 +1,4 @@
-use crate::config::{CURRENT_SCHEMA_VERSION, Config};
+use crate::config::{CURRENT_SCHEMA_VERSION, Config, ProfileState};
 use crate::paths::AppPaths;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
@@ -44,6 +44,9 @@ impl ConfigStore {
         let mut config = self.load_or_create()?;
         if !config.profiles.contains_key(id) {
             return Err(StoreError::UnknownProfile);
+        }
+        if config.profile_state(id) == Some(ProfileState::Draft) {
+            return Err(StoreError::ProfileNotReady(id.to_owned()));
         }
 
         config.active_profile = id.to_owned();
@@ -172,6 +175,7 @@ pub enum StoreError {
     InvalidConfig(crate::config::ValidationErrors),
     UnsupportedSchemaVersion(u32),
     UnknownProfile,
+    ProfileNotReady(String),
     InvalidConfigPath(PathBuf),
     CreateBackup { path: PathBuf, source: io::Error },
     WriteBackup { path: PathBuf, source: io::Error },
@@ -229,6 +233,12 @@ impl std::fmt::Display for StoreError {
                 write!(formatter, "schema version {version} is unsupported")
             }
             Self::UnknownProfile => write!(formatter, "the requested profile does not exist"),
+            Self::ProfileNotReady(id) => {
+                write!(
+                    formatter,
+                    "profile '{id}' is a draft and cannot be activated"
+                )
+            }
             Self::InvalidConfigPath(path) => {
                 write!(
                     formatter,
@@ -317,6 +327,23 @@ mod tests {
             .expect_err("unknown profile must fail");
 
         assert!(matches!(error, StoreError::UnknownProfile));
+        let current =
+            fs::read_to_string(store.config_path()).expect("configuration should remain readable");
+        assert_eq!(current, original);
+    }
+
+    #[test]
+    fn draft_profile_does_not_replace_valid_configuration() {
+        let (_root, store) = test_store();
+        store.load_or_create().expect("defaults should be created");
+        let original =
+            fs::read_to_string(store.config_path()).expect("configuration should be readable");
+
+        let error = store
+            .set_active_profile("example")
+            .expect_err("draft profile activation must fail");
+
+        assert!(matches!(error, StoreError::ProfileNotReady(id) if id == "example"));
         let current =
             fs::read_to_string(store.config_path()).expect("configuration should remain readable");
         assert_eq!(current, original);

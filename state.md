@@ -148,6 +148,16 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Updated the quick-selection journey, CLI contract, data model, privacy/export rules, and acceptance criteria to match the Phase 9 catalog and readiness decision.
 - No engine or plugin code was changed.
 
+### 2026-09-12 — Phase 9: profile activation eligibility and CLI status (in progress)
+
+- Added the engine-level `Draft`, `Ready`, and `Active` profile states.
+- Defined Raw as always Ready (and Active when selected); the shipped Example profile is reported as Draft because it lacks a configured provider and model.
+- Added readiness checks for a referenced non-Raw prompt and an explicitly selected model offered by its configured provider.
+- Updated `profiles list` to print the profile ID, display name, and state, with `*` marking the Active profile.
+- Prevented `profiles set-active <id>` from activating a Draft profile. The command returns a clear non-sensitive error and leaves the existing configuration byte-for-byte unchanged.
+- Added unit and integration coverage for Draft, Ready, and Active states, CLI list output, and rejected Draft activation.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 35 tests passed and formatting/diff checks are clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -192,7 +202,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: enforce activation eligibility for draft profiles and expose clear Draft/Ready/Active status through the engine CLI. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: make an active profile that becomes unready resolve safely to Raw during processing, with a non-sensitive diagnostic. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 

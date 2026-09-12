@@ -55,8 +55,6 @@ fn empty_input_is_returned_unchanged() {
 #[test]
 fn explicit_raw_profile_does_not_change_the_persisted_selection() {
     let root = tempfile::tempdir().expect("temporary XDG root should exist");
-    let initial = run_process(&root, &["profiles", "set-active", "example"], b"");
-    assert!(initial.status.success());
 
     let output = run_process(&root, &["process", "--profile", "raw"], b"raw text");
     assert!(output.status.success());
@@ -64,7 +62,38 @@ fn explicit_raw_profile_does_not_change_the_persisted_selection() {
 
     let config_path = root.path().join("config/voxtype-personas/config.toml");
     let configuration = fs::read_to_string(config_path).expect("configuration should exist");
-    assert!(configuration.contains("active_profile = \"example\""));
+    assert!(configuration.contains("active_profile = \"raw\""));
+}
+
+#[test]
+fn profiles_list_exposes_draft_ready_and_active_state() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+
+    let output = run_process(&root, &["profiles", "list"], b"");
+
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("profile list should be UTF-8"),
+        "  example\tExample profile\tDraft\n* raw\tRaw\tActive\n"
+    );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn draft_profile_activation_is_rejected_without_changing_configuration() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+
+    let output = run_process(&root, &["profiles", "set-active", "example"], b"");
+
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        String::from_utf8(output.stderr).expect("diagnostic should be UTF-8"),
+        "voxtype-personas: profile 'example' is a draft and cannot be activated\n"
+    );
+    let config_path = root.path().join("config/voxtype-personas/config.toml");
+    let configuration = fs::read_to_string(config_path).expect("configuration should exist");
+    assert!(configuration.contains("active_profile = \"raw\""));
 }
 
 #[test]

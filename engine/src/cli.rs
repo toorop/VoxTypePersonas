@@ -251,13 +251,16 @@ fn profiles(command: ProfilesCommand) -> Result<(), CliError> {
     match command {
         ProfilesCommand::List => {
             let config = store.load_or_create().map_err(CliError::Store)?;
-            for (id, profile) in config.profiles {
-                let marker = if id == config.active_profile {
+            for (id, profile) in &config.profiles {
+                let state = config
+                    .profile_state(id)
+                    .expect("listed profiles must have a state");
+                let marker = if state == crate::config::ProfileState::Active {
                     "*"
                 } else {
                     " "
                 };
-                println!("{marker} {id}\t{}", profile.name);
+                println!("{marker} {id}\t{}\t{}", profile.name, state.label());
             }
             Ok(())
         }

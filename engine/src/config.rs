@@ -64,6 +64,23 @@ pub struct Profile {
     pub output_policy: OutputPolicy,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProfileState {
+    Draft,
+    Ready,
+    Active,
+}
+
+impl ProfileState {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Draft => "Draft",
+            Self::Ready => "Ready",
+            Self::Active => "Active",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct OutputPolicy {
@@ -163,6 +180,8 @@ impl Config {
 
         if !self.profiles.contains_key(&self.active_profile) {
             errors.push("the active profile does not exist".to_owned());
+        } else if self.profile_state(&self.active_profile) == Some(ProfileState::Draft) {
+            errors.push("the active profile is not ready".to_owned());
         }
 
         for (id, provider) in &self.providers {
@@ -211,6 +230,43 @@ impl Config {
             Ok(())
         } else {
             Err(ValidationErrors::new(errors))
+        }
+    }
+
+    pub fn profile_state(&self, id: &str) -> Option<ProfileState> {
+        let profile = self.profiles.get(id)?;
+
+        if id == RAW_PROFILE_ID {
+            return Some(if id == self.active_profile {
+                ProfileState::Active
+            } else {
+                ProfileState::Ready
+            });
+        }
+
+        let has_valid_prompt = profile
+            .prompt
+            .as_ref()
+            .and_then(|prompt_id| self.prompts.get(prompt_id))
+            .is_some_and(|prompt| {
+                !prompt.name.trim().is_empty() && !prompt.system.trim().is_empty()
+            });
+        let has_compatible_model = match (&profile.provider, &profile.model) {
+            (Some(provider_id), Some(model)) if !model.trim().is_empty() => self
+                .providers
+                .get(provider_id)
+                .is_some_and(|provider| provider.models.iter().any(|candidate| candidate == model)),
+            _ => false,
+        };
+
+        if has_valid_prompt && has_compatible_model {
+            Some(if id == self.active_profile {
+                ProfileState::Active
+            } else {
+                ProfileState::Ready
+            })
+        } else {
+            Some(ProfileState::Draft)
         }
     }
 }
@@ -349,6 +405,52 @@ mod tests {
             .validate()
             .expect_err("missing active profile must fail");
         assert!(error.to_string().contains("active profile does not exist"));
+    }
+
+    #[test]
+    fn example_profile_is_a_draft() {
+        let config = Config::defaults();
+
+        assert_eq!(config.profile_state("raw"), Some(ProfileState::Active));
+        assert_eq!(config.profile_state("example"), Some(ProfileState::Draft));
+    }
+
+    #[test]
+    fn configured_profile_becomes_ready_and_then_active() {
+        let mut config = Config::defaults();
+        config.providers.insert(
+            "ollama".to_owned(),
+            Provider {
+                kind: ProviderKind::Ollama,
+                endpoint: Some("http://127.0.0.1:11434".to_owned()),
+                secret_ref: None,
+                timeout_ms: Some(DEFAULT_TIMEOUT_MS),
+                models: vec!["llama3.2".to_owned()],
+            },
+        );
+        let example = config
+            .profiles
+            .get_mut("example")
+            .expect("example profile exists");
+        example.provider = Some("ollama".to_owned());
+        example.model = Some("llama3.2".to_owned());
+
+        assert_eq!(config.profile_state("example"), Some(ProfileState::Ready));
+
+        config.active_profile = "example".to_owned();
+        assert!(config.validate().is_ok());
+        assert_eq!(config.profile_state("example"), Some(ProfileState::Active));
+    }
+
+    #[test]
+    fn draft_profile_cannot_be_active_in_a_valid_configuration() {
+        let mut config = Config::defaults();
+        config.active_profile = "example".to_owned();
+
+        let error = config
+            .validate()
+            .expect_err("draft profiles must not be active");
+        assert!(error.to_string().contains("active profile is not ready"));
     }
 
     #[test]
