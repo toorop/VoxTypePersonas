@@ -213,6 +213,37 @@ fn profiles_import_rejects_invalid_files_without_creating_configuration() {
 }
 
 #[test]
+fn profiles_export_writes_a_safe_portable_draft_without_overwriting_files() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+    let output_path = root.path().join("example.md");
+    let output_path_string = output_path.display().to_string();
+
+    let output = run_process(
+        &root,
+        &["profiles", "export", "example", &output_path_string],
+        b"",
+    );
+
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"Exported portable profile 'example'.\n");
+    assert!(output.stderr.is_empty());
+    let exported = fs::read_to_string(&output_path).expect("export should exist");
+    assert!(exported.starts_with("---\n"));
+    assert!(!exported.contains("secret_ref"));
+
+    let second = run_process(
+        &root,
+        &["profiles", "export", "example", &output_path_string],
+        b"",
+    );
+    assert!(!second.status.success());
+    assert_eq!(
+        fs::read_to_string(&output_path).expect("first export must remain intact"),
+        exported
+    );
+}
+
+#[test]
 fn unavailable_profile_preserves_raw_output_and_keeps_input_out_of_diagnostics() {
     let root = tempfile::tempdir().expect("temporary XDG root should exist");
     let input = b"private dictated content";

@@ -200,6 +200,15 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Added storage and CLI integration tests for successful Draft import, unsafe-file rejection without configuration creation, preserved active Raw selection, and failed-import preservation.
 - Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 44 unit tests and 11 integration tests passed and formatting/diff checks are clean.
 
+### 2026-09-12 — Phase 9: safe portable-profile export (in progress)
+
+- Added `voxtype-personas profiles export <id> <file>`.
+- The command serializes an exportable local non-Raw profile as a portable Draft with YAML front matter and a Markdown-body system prompt.
+- Export includes only public provider kind, endpoint, and selected-model metadata; it never serializes Secret Service references or key material.
+- Export refuses the mandatory Raw profile and uses create-new file semantics, so it never overwrites an existing destination.
+- Added catalog and CLI integration coverage for safe serialization, parser round-trip, output-file creation, and overwrite refusal.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 45 unit tests and 12 integration tests passed and formatting/diff checks are clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -244,7 +253,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: add a read-only portable-profile export command that serializes a local Draft without provider credentials or Secret Service references. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: update the user-facing documentation for `profiles validate`, `profiles import`, and `profiles export`, including their Draft-only and safe-file behavior. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 

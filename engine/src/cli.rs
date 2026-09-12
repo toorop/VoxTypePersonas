@@ -8,7 +8,7 @@ use crate::providers::{
 use crate::secrets::{SecretRef, SecretServiceStore, SecretStore};
 use crate::storage::ConfigStore;
 use clap::{Args, Parser, Subcommand};
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 
@@ -55,6 +55,10 @@ enum ProfilesCommand {
     Import {
         #[arg(value_name = "FILE", required = true, num_args = 1..)]
         files: Vec<PathBuf>,
+    },
+    Export {
+        id: String,
+        output: PathBuf,
     },
 }
 
@@ -297,6 +301,7 @@ fn profiles(command: ProfilesCommand) -> Result<(), CliError> {
         }
         ProfilesCommand::Validate { files } => validate_portable_profiles(&files),
         ProfilesCommand::Import { files } => import_portable_profiles(&files),
+        ProfilesCommand::Export { id, output } => export_portable_profile(&id, &output),
     }
 }
 
@@ -332,6 +337,32 @@ fn read_portable_profiles(files: &[PathBuf]) -> Result<Vec<PortableProfile>, Cli
     parse_portable_profiles(sources.iter().map(String::as_str)).map_err(CliError::Catalog)
 }
 
+fn export_portable_profile(id: &str, output: &PathBuf) -> Result<(), CliError> {
+    let store = ConfigStore::discover().map_err(CliError::Store)?;
+    let config = store.load_or_create().map_err(CliError::Store)?;
+    let source = crate::catalog::export_portable_profile(&config, id).map_err(CliError::Catalog)?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(output)
+        .map_err(|source| CliError::WritePortableProfile {
+            path: output.clone(),
+            source,
+        })?;
+    file.write_all(source.as_bytes())
+        .map_err(|source| CliError::WritePortableProfile {
+            path: output.clone(),
+            source,
+        })?;
+    file.sync_all()
+        .map_err(|source| CliError::WritePortableProfile {
+            path: output.clone(),
+            source,
+        })?;
+    println!("Exported portable profile '{id}'.");
+    Ok(())
+}
+
 #[derive(Debug)]
 pub enum CliError {
     NotImplemented(String),
@@ -343,6 +374,10 @@ pub enum CliError {
         source: std::io::Error,
     },
     ReadPortableProfile {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    WritePortableProfile {
         path: PathBuf,
         source: std::io::Error,
     },
@@ -372,6 +407,13 @@ impl std::fmt::Display for CliError {
                 write!(
                     formatter,
                     "could not read portable profile file '{}': {source}",
+                    path.display()
+                )
+            }
+            Self::WritePortableProfile { path, source } => {
+                write!(
+                    formatter,
+                    "could not write portable profile file '{}': {source}",
                     path.display()
                 )
             }

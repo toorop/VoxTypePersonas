@@ -1,11 +1,11 @@
 use crate::config::{
-    CURRENT_SCHEMA_VERSION, DEFAULT_MAX_INPUT_CHARS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_TIMEOUT_MS,
-    OutputPolicy, ProviderKind, RAW_PROFILE_ID,
+    CURRENT_SCHEMA_VERSION, Config, DEFAULT_MAX_INPUT_CHARS, DEFAULT_MAX_OUTPUT_TOKENS,
+    DEFAULT_TIMEOUT_MS, OutputPolicy, ProviderKind, RAW_PROFILE_ID,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct PortableProfile {
     pub schema_version: u32,
@@ -21,13 +21,13 @@ pub struct PortableProfile {
     pub system_prompt: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PortableProfileStatus {
     Draft,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct PortableProvider {
     pub kind: Option<ProviderKind>,
@@ -35,7 +35,7 @@ pub struct PortableProvider {
     pub model: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Compatibility {
     #[serde(default)]
@@ -43,7 +43,7 @@ pub struct Compatibility {
     pub notes: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Limits {
     #[serde(default = "default_max_input_chars")]
@@ -86,6 +86,66 @@ pub fn parse_portable_profiles<'a>(
         .collect::<Result<Vec<_>, _>>()?;
     validate_unique_profile_ids(&profiles)?;
     Ok(profiles)
+}
+
+pub fn export_portable_profile(config: &Config, id: &str) -> Result<String, CatalogError> {
+    if id == RAW_PROFILE_ID {
+        return Err(CatalogError::ReservedProfileId);
+    }
+    let profile = config
+        .profiles
+        .get(id)
+        .ok_or_else(|| CatalogError::UnknownLocalProfile(id.to_owned()))?;
+    let prompt_id = profile
+        .prompt
+        .as_deref()
+        .ok_or(CatalogError::NotExportable("system prompt"))?;
+    let prompt = config
+        .prompts
+        .get(prompt_id)
+        .ok_or(CatalogError::NotExportable("system prompt"))?;
+    let provider = match &profile.provider {
+        Some(provider_id) => {
+            let provider = config
+                .providers
+                .get(provider_id)
+                .ok_or(CatalogError::NotExportable("provider"))?;
+            PortableProvider {
+                kind: Some(provider.kind.clone()),
+                endpoint: provider.endpoint.clone(),
+                model: profile.model.clone(),
+            }
+        }
+        None => PortableProvider {
+            kind: None,
+            endpoint: None,
+            model: None,
+        },
+    };
+    let portable = PortableProfile {
+        schema_version: CURRENT_SCHEMA_VERSION,
+        id: id.to_owned(),
+        name: profile.name.clone(),
+        status: PortableProfileStatus::Draft,
+        provider,
+        compatibility: Compatibility {
+            model_families: Vec::new(),
+            notes: "Evaluate and adapt this exported prompt for the selected model before activating it."
+                .to_owned(),
+        },
+        limits: Limits {
+            max_input_chars: profile.max_input_chars,
+            max_output_tokens: profile.max_output_tokens,
+            timeout_ms: profile.timeout_ms,
+        },
+        output_policy: profile.output_policy.clone(),
+        system_prompt: prompt.system.clone(),
+    };
+    let front_matter = serde_yaml::to_string(&portable).map_err(CatalogError::Serialize)?;
+    Ok(format!(
+        "---\n{front_matter}---\n{}",
+        portable.system_prompt
+    ))
 }
 
 fn split_front_matter(source: &str) -> Result<(&str, &str), CatalogError> {
@@ -185,8 +245,11 @@ pub enum CatalogError {
     UnsupportedSchemaVersion(u32),
     InvalidField(&'static str),
     ReservedProfileId,
+    UnknownLocalProfile(String),
+    NotExportable(&'static str),
     DuplicateProfileId(String),
     ProhibitedContent(&'static str),
+    Serialize(serde_yaml::Error),
 }
 
 impl fmt::Display for CatalogError {
@@ -213,6 +276,15 @@ impl fmt::Display for CatalogError {
                     "portable profile cannot replace the mandatory Raw profile"
                 )
             }
+            Self::UnknownLocalProfile(id) => {
+                write!(formatter, "local profile '{id}' does not exist")
+            }
+            Self::NotExportable(field) => {
+                write!(
+                    formatter,
+                    "local profile cannot be exported without a {field}"
+                )
+            }
             Self::DuplicateProfileId(id) => {
                 write!(
                     formatter,
@@ -225,6 +297,7 @@ impl fmt::Display for CatalogError {
                     "portable profile contains prohibited {kind} content"
                 )
             }
+            Self::Serialize(_) => write!(formatter, "portable profile could not be serialized"),
         }
     }
 }
@@ -359,5 +432,18 @@ Correct the transcription while preserving the speaker's intent.
             parse_portable_profile(missing_front_matter),
             Err(CatalogError::MissingFrontMatter)
         ));
+    }
+
+    #[test]
+    fn exports_a_local_draft_without_secret_references() {
+        let config = crate::config::Config::defaults();
+
+        let exported = export_portable_profile(&config, "example")
+            .expect("default Example should be exportable");
+        let parsed = parse_portable_profile(&exported).expect("export should be portable");
+
+        assert_eq!(parsed.id, "example");
+        assert_eq!(parsed.status, PortableProfileStatus::Draft);
+        assert!(!exported.contains("secret_ref"));
     }
 }
