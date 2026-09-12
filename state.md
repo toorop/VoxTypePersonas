@@ -241,7 +241,7 @@ Phases 0 through 9 are complete and Phase 9 is awaiting user validation, its fin
 - Rewrote `docs/VoxTypePersonas.md` in English and removed its superseded profile/import-export decisions, so project documentation now follows the repository English-only convention.
 - Fixed two Clippy `collapsible_if` warnings discovered during the review.
 - Ran `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, `cargo test --workspace`, and `git diff --check`; all checks passed, with 49 unit tests and 12 integration tests.
-- The final review changes are not committed yet. The branch is 11 commits ahead of `origin/main`; no push has been made.
+- The Phase 9 review was committed as `5c21a16` (`chore: complete phase 9 review`) and the complete Phase 9 history was pushed to `origin/main`.
 
 ## Decisions currently in force
 
