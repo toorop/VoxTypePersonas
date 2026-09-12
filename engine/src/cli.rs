@@ -1,3 +1,4 @@
+use crate::catalog::parse_portable_profiles;
 use crate::config::Config;
 use crate::processing::{ProcessingOutput, ProviderFailure, finalize_provider_response};
 use crate::providers::{
@@ -44,7 +45,13 @@ struct ProfilesArgs {
 #[derive(Debug, Subcommand)]
 enum ProfilesCommand {
     List,
-    SetActive { id: String },
+    SetActive {
+        id: String,
+    },
+    Validate {
+        #[arg(value_name = "FILE", required = true, num_args = 1..)]
+        files: Vec<PathBuf>,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -261,9 +268,9 @@ fn validate(args: ValidateArgs) -> Result<(), CliError> {
 }
 
 fn profiles(command: ProfilesCommand) -> Result<(), CliError> {
-    let store = ConfigStore::discover().map_err(CliError::Store)?;
     match command {
         ProfilesCommand::List => {
+            let store = ConfigStore::discover().map_err(CliError::Store)?;
             let config = store.load_or_create().map_err(CliError::Store)?;
             for (id, profile) in &config.profiles {
                 let state = config
@@ -279,11 +286,28 @@ fn profiles(command: ProfilesCommand) -> Result<(), CliError> {
             Ok(())
         }
         ProfilesCommand::SetActive { id } => {
+            let store = ConfigStore::discover().map_err(CliError::Store)?;
             let config = store.set_active_profile(&id).map_err(CliError::Store)?;
             println!("Active profile set to '{}'.", config.active_profile);
             Ok(())
         }
+        ProfilesCommand::Validate { files } => validate_portable_profiles(&files),
     }
+}
+
+fn validate_portable_profiles(files: &[PathBuf]) -> Result<(), CliError> {
+    let sources = files
+        .iter()
+        .map(|path| {
+            fs::read_to_string(path).map_err(|source| CliError::ReadPortableProfile {
+                path: path.clone(),
+                source,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    parse_portable_profiles(sources.iter().map(String::as_str)).map_err(CliError::Catalog)?;
+    println!("Validated {} portable profile file(s).", sources.len());
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -296,8 +320,13 @@ pub enum CliError {
         path: PathBuf,
         source: std::io::Error,
     },
+    ReadPortableProfile {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     ParseConfig(toml::de::Error),
     InvalidConfig(crate::config::ValidationErrors),
+    Catalog(crate::catalog::CatalogError),
     Store(crate::storage::StoreError),
 }
 
@@ -317,8 +346,16 @@ impl std::fmt::Display for CliError {
                     path.display()
                 )
             }
+            Self::ReadPortableProfile { path, source } => {
+                write!(
+                    formatter,
+                    "could not read portable profile file '{}': {source}",
+                    path.display()
+                )
+            }
             Self::ParseConfig(error) => write!(formatter, "could not parse configuration: {error}"),
             Self::InvalidConfig(error) => write!(formatter, "{error}"),
+            Self::Catalog(error) => write!(formatter, "{error}"),
             Self::Store(error) => write!(formatter, "{error}"),
         }
     }

@@ -128,6 +128,47 @@ fn persisted_draft_active_profile_falls_back_to_raw_output() {
 }
 
 #[test]
+fn profiles_validate_reads_catalog_files_without_creating_configuration() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+    let example = format!("{}/../profiles/example.md", env!("CARGO_MANIFEST_DIR"));
+
+    let output = run_process(&root, &["profiles", "validate", &example], b"");
+
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"Validated 1 portable profile file(s).\n");
+    assert!(output.stderr.is_empty());
+    assert!(
+        !root
+            .path()
+            .join("config/voxtype-personas/config.toml")
+            .exists()
+    );
+}
+
+#[test]
+fn profiles_validate_rejects_duplicate_catalog_ids_without_creating_configuration() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+    let fixture_root = format!("{}/tests/fixtures/catalog", env!("CARGO_MANIFEST_DIR"));
+    let first = format!("{fixture_root}/duplicate-a.md");
+    let second = format!("{fixture_root}/duplicate-b.md");
+
+    let output = run_process(&root, &["profiles", "validate", &first, &second], b"");
+
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        output.stderr,
+        b"voxtype-personas: portable profile identifier 'duplicate' is duplicated\n"
+    );
+    assert!(
+        !root
+            .path()
+            .join("config/voxtype-personas/config.toml")
+            .exists()
+    );
+}
+
+#[test]
 fn unavailable_profile_preserves_raw_output_and_keeps_input_out_of_diagnostics() {
     let root = tempfile::tempdir().expect("temporary XDG root should exist");
     let input = b"private dictated content";

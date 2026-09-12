@@ -183,6 +183,13 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - This sub-step still performs no import, export, or configuration write.
 - Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 42 unit tests and 7 integration tests passed and formatting/diff checks are clean.
 
+### 2026-09-12 — Phase 9: read-only portable-profile CLI validation (in progress)
+
+- Added `voxtype-personas profiles validate <file>...` as a read-only CLI surface for one or more portable catalog files.
+- The command reuses the strict parser and set-level duplicate-ID checks, reports only safe diagnostics, and does not discover, create, read, or write the local XDG configuration.
+- Added integration coverage for successful validation of the shipped Example profile and rejection of duplicate IDs, proving that neither result creates `config.toml`.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 42 unit tests and 9 integration tests passed and formatting/diff checks are clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -227,7 +234,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: define a read-only CLI validation surface for portable profile files, reusing the catalog parser without importing them. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: design and implement an atomic portable-profile import into local configuration, beginning with Draft-only import behavior and failure preservation tests. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 
