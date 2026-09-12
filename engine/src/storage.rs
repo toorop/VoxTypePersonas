@@ -1,4 +1,5 @@
-use crate::config::{CURRENT_SCHEMA_VERSION, Config, ProfileState};
+use crate::catalog::PortableProfile;
+use crate::config::{CURRENT_SCHEMA_VERSION, Config, Profile, ProfileState, Prompt};
 use crate::paths::AppPaths;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
@@ -50,6 +51,49 @@ impl ConfigStore {
         }
 
         config.active_profile = id.to_owned();
+        config.validate()?;
+        self.write_atomically(&config)?;
+        Ok(config)
+    }
+
+    pub fn import_draft_profiles(
+        &self,
+        portable_profiles: &[PortableProfile],
+    ) -> Result<Config, StoreError> {
+        let mut config = self.load_or_create()?;
+
+        for portable in portable_profiles {
+            if config.profiles.contains_key(&portable.id) {
+                return Err(StoreError::ProfileAlreadyExists(portable.id.clone()));
+            }
+            if config.prompts.contains_key(&portable.id) {
+                return Err(StoreError::PromptAlreadyExists(portable.id.clone()));
+            }
+        }
+
+        for portable in portable_profiles {
+            config.prompts.insert(
+                portable.id.clone(),
+                Prompt {
+                    name: portable.name.clone(),
+                    system: portable.system_prompt.clone(),
+                },
+            );
+            config.profiles.insert(
+                portable.id.clone(),
+                Profile {
+                    name: portable.name.clone(),
+                    provider: None,
+                    model: None,
+                    prompt: Some(portable.id.clone()),
+                    max_input_chars: portable.limits.max_input_chars,
+                    max_output_tokens: portable.limits.max_output_tokens,
+                    timeout_ms: portable.limits.timeout_ms,
+                    output_policy: portable.output_policy.clone(),
+                },
+            );
+        }
+
         config.validate()?;
         self.write_atomically(&config)?;
         Ok(config)
@@ -176,6 +220,8 @@ pub enum StoreError {
     UnsupportedSchemaVersion(u32),
     UnknownProfile,
     ProfileNotReady(String),
+    ProfileAlreadyExists(String),
+    PromptAlreadyExists(String),
     InvalidConfigPath(PathBuf),
     CreateBackup { path: PathBuf, source: io::Error },
     WriteBackup { path: PathBuf, source: io::Error },
@@ -238,6 +284,12 @@ impl std::fmt::Display for StoreError {
                     formatter,
                     "profile '{id}' is a draft and cannot be activated"
                 )
+            }
+            Self::ProfileAlreadyExists(id) => {
+                write!(formatter, "profile '{id}' already exists")
+            }
+            Self::PromptAlreadyExists(id) => {
+                write!(formatter, "prompt '{id}' already exists")
             }
             Self::InvalidConfigPath(path) => {
                 write!(
@@ -346,6 +398,56 @@ mod tests {
         assert!(matches!(error, StoreError::ProfileNotReady(id) if id == "example"));
         let current =
             fs::read_to_string(store.config_path()).expect("configuration should remain readable");
+        assert_eq!(current, original);
+    }
+
+    #[test]
+    fn imports_a_portable_profile_as_a_draft() {
+        let (_root, store) = test_store();
+        let portable = crate::catalog::parse_portable_profile(include_str!(
+            "../tests/fixtures/catalog/duplicate-a.md"
+        ))
+        .expect("fixture should parse");
+
+        let imported = store
+            .import_draft_profiles(&[portable])
+            .expect("portable profile should import");
+
+        assert_eq!(imported.active_profile, RAW_PROFILE_ID);
+        assert_eq!(
+            imported.profile_state("duplicate"),
+            Some(ProfileState::Draft)
+        );
+        assert_eq!(
+            imported
+                .prompts
+                .get("duplicate")
+                .expect("imported prompt should exist")
+                .name,
+            "Duplicate A"
+        );
+    }
+
+    #[test]
+    fn failed_import_preserves_the_existing_configuration() {
+        let (_root, store) = test_store();
+        let portable = crate::catalog::parse_portable_profile(include_str!(
+            "../tests/fixtures/catalog/duplicate-a.md"
+        ))
+        .expect("fixture should parse");
+        store
+            .import_draft_profiles(&[portable.clone()])
+            .expect("first import should succeed");
+        let original =
+            fs::read_to_string(store.config_path()).expect("configuration should be readable");
+
+        let error = store
+            .import_draft_profiles(&[portable])
+            .expect_err("duplicate import should fail");
+
+        assert!(matches!(error, StoreError::ProfileAlreadyExists(id) if id == "duplicate"));
+        let current =
+            fs::read_to_string(store.config_path()).expect("configuration should be readable");
         assert_eq!(current, original);
     }
 

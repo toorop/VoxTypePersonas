@@ -190,6 +190,16 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Added integration coverage for successful validation of the shipped Example profile and rejection of duplicate IDs, proving that neither result creates `config.toml`.
 - Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 42 unit tests and 9 integration tests passed and formatting/diff checks are clean.
 
+### 2026-09-12 — Phase 9: atomic Draft-profile import (in progress)
+
+- Added `voxtype-personas profiles import <file>...`.
+- The command reads and validates every requested portable profile, including set-level duplicate-ID checks, before discovering or writing local configuration.
+- A successful import atomically adds each profile's name, system prompt, limits, and output policy as a local Draft; it deliberately leaves provider and model unconfigured, so imported content cannot be activated before local provider setup.
+- Reserved `raw` as an invalid portable profile ID, preventing any catalog file from replacing the mandatory Raw profile.
+- Existing local profile or prompt ID collisions fail without replacing the prior configuration.
+- Added storage and CLI integration tests for successful Draft import, unsafe-file rejection without configuration creation, preserved active Raw selection, and failed-import preservation.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 44 unit tests and 11 integration tests passed and formatting/diff checks are clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -234,7 +244,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: design and implement an atomic portable-profile import into local configuration, beginning with Draft-only import behavior and failure preservation tests. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: add a read-only portable-profile export command that serializes a local Draft without provider credentials or Secret Service references. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 

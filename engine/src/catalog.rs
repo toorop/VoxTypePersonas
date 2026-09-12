@@ -1,6 +1,6 @@
 use crate::config::{
     CURRENT_SCHEMA_VERSION, DEFAULT_MAX_INPUT_CHARS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_TIMEOUT_MS,
-    OutputPolicy, ProviderKind,
+    OutputPolicy, ProviderKind, RAW_PROFILE_ID,
 };
 use serde::Deserialize;
 use std::fmt;
@@ -119,6 +119,9 @@ fn validate_portable_profile(profile: &PortableProfile) -> Result<(), CatalogErr
     if !is_valid_identifier(&profile.id) {
         return Err(CatalogError::InvalidField("id"));
     }
+    if profile.id == RAW_PROFILE_ID {
+        return Err(CatalogError::ReservedProfileId);
+    }
     if profile.name.trim().is_empty() {
         return Err(CatalogError::InvalidField("name"));
     }
@@ -181,6 +184,7 @@ pub enum CatalogError {
     InvalidFrontMatter(serde_yaml::Error),
     UnsupportedSchemaVersion(u32),
     InvalidField(&'static str),
+    ReservedProfileId,
     DuplicateProfileId(String),
     ProhibitedContent(&'static str),
 }
@@ -202,6 +206,12 @@ impl fmt::Display for CatalogError {
             }
             Self::InvalidField(field) => {
                 write!(formatter, "portable profile has an invalid {field}")
+            }
+            Self::ReservedProfileId => {
+                write!(
+                    formatter,
+                    "portable profile cannot replace the mandatory Raw profile"
+                )
             }
             Self::DuplicateProfileId(id) => {
                 write!(
@@ -298,6 +308,11 @@ Correct the transcription while preserving the speaker's intent.
         assert!(matches!(
             parse_portable_profile(&invalid_id),
             Err(CatalogError::InvalidField("id"))
+        ));
+        let raw_id = VALID_PROFILE.replacen("id: example", "id: raw", 1);
+        assert!(matches!(
+            parse_portable_profile(&raw_id),
+            Err(CatalogError::ReservedProfileId)
         ));
     }
 

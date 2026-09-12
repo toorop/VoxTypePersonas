@@ -1,4 +1,4 @@
-use crate::catalog::parse_portable_profiles;
+use crate::catalog::{PortableProfile, parse_portable_profiles};
 use crate::config::Config;
 use crate::processing::{ProcessingOutput, ProviderFailure, finalize_provider_response};
 use crate::providers::{
@@ -49,6 +49,10 @@ enum ProfilesCommand {
         id: String,
     },
     Validate {
+        #[arg(value_name = "FILE", required = true, num_args = 1..)]
+        files: Vec<PathBuf>,
+    },
+    Import {
         #[arg(value_name = "FILE", required = true, num_args = 1..)]
         files: Vec<PathBuf>,
     },
@@ -292,10 +296,30 @@ fn profiles(command: ProfilesCommand) -> Result<(), CliError> {
             Ok(())
         }
         ProfilesCommand::Validate { files } => validate_portable_profiles(&files),
+        ProfilesCommand::Import { files } => import_portable_profiles(&files),
     }
 }
 
 fn validate_portable_profiles(files: &[PathBuf]) -> Result<(), CliError> {
+    let profiles = read_portable_profiles(files)?;
+    println!("Validated {} portable profile file(s).", profiles.len());
+    Ok(())
+}
+
+fn import_portable_profiles(files: &[PathBuf]) -> Result<(), CliError> {
+    let profiles = read_portable_profiles(files)?;
+    let store = ConfigStore::discover().map_err(CliError::Store)?;
+    store
+        .import_draft_profiles(&profiles)
+        .map_err(CliError::Store)?;
+    println!(
+        "Imported {} portable profile file(s) as Draft.",
+        profiles.len()
+    );
+    Ok(())
+}
+
+fn read_portable_profiles(files: &[PathBuf]) -> Result<Vec<PortableProfile>, CliError> {
     let sources = files
         .iter()
         .map(|path| {
@@ -305,9 +329,7 @@ fn validate_portable_profiles(files: &[PathBuf]) -> Result<(), CliError> {
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    parse_portable_profiles(sources.iter().map(String::as_str)).map_err(CliError::Catalog)?;
-    println!("Validated {} portable profile file(s).", sources.len());
-    Ok(())
+    parse_portable_profiles(sources.iter().map(String::as_str)).map_err(CliError::Catalog)
 }
 
 #[derive(Debug)]

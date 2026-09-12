@@ -169,6 +169,50 @@ fn profiles_validate_rejects_duplicate_catalog_ids_without_creating_configuratio
 }
 
 #[test]
+fn profiles_import_adds_a_draft_without_changing_the_active_profile() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+    let profile = format!(
+        "{}/tests/fixtures/catalog/duplicate-a.md",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    let output = run_process(&root, &["profiles", "import", &profile], b"");
+
+    assert!(output.status.success());
+    assert_eq!(
+        output.stdout,
+        b"Imported 1 portable profile file(s) as Draft.\n"
+    );
+    assert!(output.stderr.is_empty());
+    let config_path = root.path().join("config/voxtype-personas/config.toml");
+    let configuration = fs::read_to_string(config_path).expect("configuration should exist");
+    assert!(configuration.contains("active_profile = \"raw\""));
+    assert!(configuration.contains("[profiles.duplicate]"));
+}
+
+#[test]
+fn profiles_import_rejects_invalid_files_without_creating_configuration() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+    let profile = format!(
+        "{}/tests/fixtures/catalog/secret-reference.md",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    let output = run_process(&root, &["profiles", "import", &profile], b"");
+
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("prohibited secret_ref content"));
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("private-reference"));
+    assert!(
+        !root
+            .path()
+            .join("config/voxtype-personas/config.toml")
+            .exists()
+    );
+}
+
+#[test]
 fn unavailable_profile_preserves_raw_output_and_keeps_input_out_of_diagnostics() {
     let root = tempfile::tempdir().expect("temporary XDG root should exist");
     let input = b"private dictated content";
