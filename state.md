@@ -216,6 +216,14 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Corrected the README implementation status to Phase 9 in progress and removed an obsolete statement that Secret Service integration was still pending.
 - Ran `git diff --check`; documentation changes are whitespace-clean.
 
+### 2026-09-12 — Phase 9: remote Secret Service reference eligibility (in progress)
+
+- Made every remote provider kind require an opaque, syntactically valid VoxTypePersonas Secret Service reference. This now includes Anthropic and Gemini as well as OpenAI-compatible providers.
+- Updated profile readiness so a remote profile with an absent or invalid secret reference remains Draft even when it has a prompt, provider, and selected model.
+- Kept Ollama as the only provider kind that does not require a Secret Service reference.
+- Added coverage for every remote provider kind and for the Draft-to-Ready transition when a valid opaque reference is supplied. These checks validate the reference only; verification that the referenced key currently exists in Secret Service remains the next small step.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 47 unit tests and 12 integration tests passed and formatting/diff checks are clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -260,7 +268,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: require a valid Secret Service reference for every remote provider kind and include that requirement in Draft/Ready eligibility. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: verify the referenced Secret Service item during remote-profile activation, using an injectable store for deterministic tests and preserving configuration on verification failure. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 

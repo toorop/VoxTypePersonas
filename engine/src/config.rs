@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 
+use crate::secrets::SecretRef;
+
 pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 pub const RAW_PROFILE_ID: &str = "raw";
 pub const DEFAULT_MAX_INPUT_CHARS: u32 = 20_000;
@@ -41,6 +43,12 @@ pub enum ProviderKind {
     Anthropic,
     Gemini,
     OpenaiCompatible,
+}
+
+impl ProviderKind {
+    pub const fn requires_secret(&self) -> bool {
+        !matches!(self, Self::Ollama)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -196,18 +204,16 @@ impl Config {
                     errors.push(format!("provider '{id}' has an invalid endpoint URL"));
                 }
             }
-            if matches!(
-                provider.kind,
-                ProviderKind::Openai
-                    | ProviderKind::Mistral
-                    | ProviderKind::Groq
-                    | ProviderKind::Openrouter
-                    | ProviderKind::OpenaiCompatible
-            ) && provider.secret_ref.as_deref().is_none_or(str::is_empty)
-            {
-                errors.push(format!(
-                    "provider '{id}' requires a Secret Service reference"
-                ));
+            if provider.kind.requires_secret() {
+                match provider.secret_ref.as_deref() {
+                    None | Some("") => errors.push(format!(
+                        "provider '{id}' requires a Secret Service reference"
+                    )),
+                    Some(reference) if SecretRef::from_config(reference).is_err() => errors.push(
+                        format!("provider '{id}' has an invalid Secret Service reference"),
+                    ),
+                    Some(_) => {}
+                }
             }
         }
 
@@ -250,10 +256,16 @@ impl Config {
                 !prompt.name.trim().is_empty() && !prompt.system.trim().is_empty()
             });
         let has_compatible_model = match (&profile.provider, &profile.model) {
-            (Some(provider_id), Some(model)) if !model.trim().is_empty() => self
-                .providers
-                .get(provider_id)
-                .is_some_and(|provider| provider.models.iter().any(|candidate| candidate == model)),
+            (Some(provider_id), Some(model)) if !model.trim().is_empty() => {
+                self.providers.get(provider_id).is_some_and(|provider| {
+                    provider.models.iter().any(|candidate| candidate == model)
+                        && (!provider.kind.requires_secret()
+                            || provider
+                                .secret_ref
+                                .as_deref()
+                                .is_some_and(|reference| SecretRef::from_config(reference).is_ok()))
+                })
+            }
             _ => false,
         };
 
@@ -438,6 +450,72 @@ mod tests {
         config.active_profile = "example".to_owned();
         assert!(config.validate().is_ok());
         assert_eq!(config.profile_state("example"), Some(ProfileState::Active));
+    }
+
+    #[test]
+    fn every_remote_provider_requires_a_valid_secret_service_reference() {
+        let remote_kinds = [
+            ProviderKind::Openai,
+            ProviderKind::Mistral,
+            ProviderKind::Groq,
+            ProviderKind::Openrouter,
+            ProviderKind::Anthropic,
+            ProviderKind::Gemini,
+            ProviderKind::OpenaiCompatible,
+        ];
+
+        for kind in remote_kinds {
+            let mut config = Config::defaults();
+            config.providers.insert(
+                "remote".to_owned(),
+                Provider {
+                    kind,
+                    endpoint: Some("https://example.invalid".to_owned()),
+                    secret_ref: None,
+                    timeout_ms: Some(DEFAULT_TIMEOUT_MS),
+                    models: vec!["test-model".to_owned()],
+                },
+            );
+
+            let error = config
+                .validate()
+                .expect_err("remote providers must require a secret reference");
+            assert!(
+                error
+                    .to_string()
+                    .contains("requires a Secret Service reference")
+            );
+        }
+    }
+
+    #[test]
+    fn remote_profile_stays_draft_until_its_secret_reference_is_valid() {
+        let mut config = Config::defaults();
+        config.providers.insert(
+            "remote".to_owned(),
+            Provider {
+                kind: ProviderKind::Openai,
+                endpoint: Some("https://example.invalid".to_owned()),
+                secret_ref: Some("invalid-reference".to_owned()),
+                timeout_ms: Some(DEFAULT_TIMEOUT_MS),
+                models: vec!["test-model".to_owned()],
+            },
+        );
+        let example = config
+            .profiles
+            .get_mut("example")
+            .expect("example profile exists");
+        example.provider = Some("remote".to_owned());
+        example.model = Some("test-model".to_owned());
+
+        assert_eq!(config.profile_state("example"), Some(ProfileState::Draft));
+
+        config
+            .providers
+            .get_mut("remote")
+            .expect("remote provider exists")
+            .secret_ref = Some("org.voxtype-personas/provider/remote".to_owned());
+        assert_eq!(config.profile_state("example"), Some(ProfileState::Ready));
     }
 
     #[test]
