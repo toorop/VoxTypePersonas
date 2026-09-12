@@ -224,6 +224,15 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Added coverage for every remote provider kind and for the Draft-to-Ready transition when a valid opaque reference is supplied. These checks validate the reference only; verification that the referenced key currently exists in Secret Service remains the next small step.
 - Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 47 unit tests and 12 integration tests passed and formatting/diff checks are clean.
 
+### 2026-09-12 — Phase 9: remote key verification on activation (in progress)
+
+- Added Secret Service item verification to `profiles set-active` before a Ready remote profile can become Active.
+- Kept local Ollama and Raw activation independent from Secret Service.
+- Added an injectable secret-store path for deterministic storage tests while production activation uses the real Secret Service adapter.
+- A missing, locked, unavailable, or otherwise unverifiable provider key rejects activation without writing configuration; diagnostics do not reveal the secret reference or key material.
+- Added success and failure tests proving verification behavior and byte-for-byte configuration preservation on failed activation.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 49 unit tests and 12 integration tests passed and formatting/diff checks are clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -268,7 +277,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: verify the referenced Secret Service item during remote-profile activation, using an injectable store for deterministic tests and preserving configuration on verification failure. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: perform a Phase 9 completion review against the roadmap and specifications, close any documentation gaps, and prepare the phase for final validation and the requested push. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 

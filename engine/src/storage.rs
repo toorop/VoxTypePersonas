@@ -1,6 +1,7 @@
 use crate::catalog::PortableProfile;
 use crate::config::{CURRENT_SCHEMA_VERSION, Config, Profile, ProfileState, Prompt};
 use crate::paths::AppPaths;
+use crate::secrets::{SecretError, SecretRef, SecretServiceStore, SecretStore};
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -42,6 +43,14 @@ impl ConfigStore {
     }
 
     pub fn set_active_profile(&self, id: &str) -> Result<Config, StoreError> {
+        self.set_active_profile_with_secret_store(id, &SecretServiceStore::new())
+    }
+
+    pub fn set_active_profile_with_secret_store(
+        &self,
+        id: &str,
+        secret_store: &impl SecretStore,
+    ) -> Result<Config, StoreError> {
         let mut config = self.load_or_create()?;
         if !config.profiles.contains_key(id) {
             return Err(StoreError::UnknownProfile);
@@ -49,6 +58,7 @@ impl ConfigStore {
         if config.profile_state(id) == Some(ProfileState::Draft) {
             return Err(StoreError::ProfileNotReady(id.to_owned()));
         }
+        verify_profile_secret(&config, id, secret_store)?;
 
         config.active_profile = id.to_owned();
         config.validate()?;
@@ -166,6 +176,36 @@ impl ConfigStore {
     }
 }
 
+fn verify_profile_secret(
+    config: &Config,
+    profile_id: &str,
+    secret_store: &impl SecretStore,
+) -> Result<(), StoreError> {
+    let profile = config
+        .profiles
+        .get(profile_id)
+        .expect("existing profile should be available");
+    let Some(provider_id) = &profile.provider else {
+        return Ok(());
+    };
+    let provider = config
+        .providers
+        .get(provider_id)
+        .expect("ready profile should reference an existing provider");
+    if !provider.kind.requires_secret() {
+        return Ok(());
+    }
+    let reference = provider
+        .secret_ref
+        .as_deref()
+        .expect("ready remote provider should have a secret reference");
+    let reference = SecretRef::from_config(reference)
+        .expect("ready remote provider should have a valid secret reference");
+    secret_store
+        .verify(&reference)
+        .map_err(StoreError::SecretVerification)
+}
+
 fn read_schema_version(source: &str) -> Result<u32, StoreError> {
     #[derive(serde::Deserialize)]
     struct SchemaHeader {
@@ -222,6 +262,7 @@ pub enum StoreError {
     ProfileNotReady(String),
     ProfileAlreadyExists(String),
     PromptAlreadyExists(String),
+    SecretVerification(SecretError),
     InvalidConfigPath(PathBuf),
     CreateBackup { path: PathBuf, source: io::Error },
     WriteBackup { path: PathBuf, source: io::Error },
@@ -291,6 +332,9 @@ impl std::fmt::Display for StoreError {
             Self::PromptAlreadyExists(id) => {
                 write!(formatter, "prompt '{id}' already exists")
             }
+            Self::SecretVerification(error) => {
+                write!(formatter, "could not verify the provider key: {error}")
+            }
             Self::InvalidConfigPath(path) => {
                 write!(
                     formatter,
@@ -328,7 +372,8 @@ impl std::error::Error for StoreError {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::RAW_PROFILE_ID;
+    use crate::config::{DEFAULT_TIMEOUT_MS, Provider, ProviderKind, RAW_PROFILE_ID};
+    use crate::secrets::InMemorySecretStore;
 
     fn test_store() -> (tempfile::TempDir, ConfigStore) {
         let temporary_root = tempfile::tempdir().expect("temporary directory should exist");
@@ -449,6 +494,95 @@ mod tests {
         let current =
             fs::read_to_string(store.config_path()).expect("configuration should be readable");
         assert_eq!(current, original);
+    }
+
+    #[test]
+    fn remote_profile_activation_requires_a_verifiable_key_without_replacing_configuration() {
+        let (_root, store) = test_store();
+        let mut config = Config::defaults();
+        config.providers.insert(
+            "remote".to_owned(),
+            Provider {
+                kind: ProviderKind::Openai,
+                endpoint: Some("https://example.invalid".to_owned()),
+                secret_ref: Some("org.voxtype-personas/provider/remote".to_owned()),
+                timeout_ms: Some(DEFAULT_TIMEOUT_MS),
+                models: vec!["test-model".to_owned()],
+            },
+        );
+        let example = config
+            .profiles
+            .get_mut("example")
+            .expect("example profile should exist");
+        example.provider = Some("remote".to_owned());
+        example.model = Some("test-model".to_owned());
+        store
+            .paths
+            .ensure_private_directories()
+            .expect("directories should exist");
+        store
+            .write_atomically(&config)
+            .expect("fixture configuration should be written");
+        let original =
+            fs::read_to_string(store.config_path()).expect("configuration should be readable");
+
+        let missing_store = InMemorySecretStore::default();
+        let error = store
+            .set_active_profile_with_secret_store("example", &missing_store)
+            .expect_err("missing provider key must reject activation");
+
+        assert!(matches!(
+            error,
+            StoreError::SecretVerification(SecretError::NotFound)
+        ));
+        assert!(
+            !error
+                .to_string()
+                .contains("org.voxtype-personas/provider/remote")
+        );
+        let current =
+            fs::read_to_string(store.config_path()).expect("configuration should be readable");
+        assert_eq!(current, original);
+    }
+
+    #[test]
+    fn remote_profile_activation_succeeds_when_the_key_verifies() {
+        let (_root, store) = test_store();
+        let mut config = Config::defaults();
+        config.providers.insert(
+            "remote".to_owned(),
+            Provider {
+                kind: ProviderKind::Openai,
+                endpoint: Some("https://example.invalid".to_owned()),
+                secret_ref: Some("org.voxtype-personas/provider/remote".to_owned()),
+                timeout_ms: Some(DEFAULT_TIMEOUT_MS),
+                models: vec!["test-model".to_owned()],
+            },
+        );
+        let example = config
+            .profiles
+            .get_mut("example")
+            .expect("example profile should exist");
+        example.provider = Some("remote".to_owned());
+        example.model = Some("test-model".to_owned());
+        store
+            .paths
+            .ensure_private_directories()
+            .expect("directories should exist");
+        store
+            .write_atomically(&config)
+            .expect("fixture configuration should be written");
+        let reference = SecretRef::for_provider("remote").expect("reference should be valid");
+        let mut secret_store = InMemorySecretStore::default();
+        secret_store
+            .write(reference, b"test-key")
+            .expect("test key should be stored");
+
+        let activated = store
+            .set_active_profile_with_secret_store("example", &secret_store)
+            .expect("verified provider key should allow activation");
+
+        assert_eq!(activated.active_profile, "example");
     }
 
     #[test]
