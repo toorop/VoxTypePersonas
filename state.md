@@ -270,6 +270,30 @@ Phases 0 through 9 are complete and have been pushed to `origin/main`. Phase 10 
 - Ran `/usr/lib/qt6/bin/qmllint -I /usr/share/omarchy/shell BarWidget.qml`. The installed linter did not resolve Omarchy's nonstandard `qs.Ui` module layout and therefore emitted unresolved-type warnings; this is an environment/tooling limitation to revisit before final plugin validation, not a reason to install a duplicate package.
 - Ran `git diff --check`; no whitespace errors were found.
 
+### 2026-09-12 — Phase 10: widget-owned anchored panel (in progress)
+
+- Added `Panel.qml` as the sole panel implementation loaded internally by `BarWidget.qml`.
+- Implemented the documented Omarchy panel lifecycle, anchor/host ownership, panel switching, and Escape-to-close behavior through `PanelKeyCatcher`.
+- Added static rows that represent the current default state: Raw as Ready and Active, and Example as a Draft that needs configuration. The rows do not invoke the engine yet.
+- Ran `omarchy plugin validate .` successfully and `git diff --check` with no whitespace errors.
+- Ran the installed `qmllint` binary against both QML files. It returned success with no syntax error, but emitted unresolved-import/type warnings because it cannot resolve Omarchy's `qs.Ui` and `qs.Commons` module layout from this packaged shell path. This environment limitation remains recorded for final plugin validation.
+
+### 2026-09-12 — Phase 10: read-only engine state in the widget (in progress)
+
+- Added a direct Quickshell `Process` invocation of `voxtype-personas profiles list` to `BarWidget.qml`; no shell wrapper is used.
+- Added parsing of the active-profile row and dynamic bar-button label/tooltip updates from the engine's tab-separated output.
+- Added a non-sensitive `Unavailable` state when the engine command fails, configuration cannot be resolved, or no active row is returned. The widget does not display command output or dictated text.
+- Kept this integration read-only. It does not select a profile, create configuration deliberately, or alter Voxtype or Omarchy system configuration.
+- Ran `omarchy plugin validate .` successfully and `git diff --check` with no whitespace errors. The installed `qmllint` returned success but still emitted the previously recorded unresolved `qs.*` module warnings from the packaged-shell layout.
+
+### 2026-09-12 — Phase 10: dynamic selector and persisted selection (in progress)
+
+- Extended `BarWidget.qml` to parse every row from `voxtype-personas profiles list` and pass profile entries plus non-sensitive error state to its loaded panel.
+- Replaced the panel's static rows with a dynamic selector. Draft entries remain visible with a configuration hint but are disabled; Ready and Active entries are selectable.
+- Added a direct Quickshell `Process` call to `voxtype-personas profiles set-active <id>` for selection. On success, the panel closes and refreshes the widget state; on failure, it remains open and shows a generic non-sensitive error.
+- No shell wrapper, provider request, secret value, dictated text, Voxtype change, or Omarchy system configuration is involved.
+- Ran `omarchy plugin validate .` successfully and `git diff --check` with no whitespace errors. The installed `qmllint` returned success but continued to report the recorded unresolved `qs.*` module warnings; the local linter's delegate-scope warnings were reduced by qualifying model data.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -314,7 +338,7 @@ Phases 0 through 9 are complete and have been pushed to `origin/main`. Phase 10 
 
 ## Next proposed step
 
-Complete the next small Phase 10 step: add `Panel.qml` as the widget-owned anchored panel, with static Raw and Example Draft rows plus Escape-to-close behavior. Do not begin until the user explicitly approves it.
+Complete the next small Phase 10 step: add an explicit refresh action and a clear empty/error state to the panel, then review the Phase 10 foundation against its acceptance criteria before running it in an installed plugin directory. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 
