@@ -1,6 +1,8 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
+import qs.Commons
 import qs.Ui
 
 BarWidget {
@@ -8,9 +10,13 @@ BarWidget {
 
     moduleName: "io.github.toorop.voxtype-personas"
 
-    property string profileLabel: "Loading…"
-    property string profileError: ""
+    // A failed process start does not emit Process.exited. Start in the safe
+    // fallback state so an unavailable release engine never leaves the bar in
+    // a permanent loading state.
+    property string profileLabel: "Unavailable"
+    property string profileError: "The VoxTypePersonas engine or configuration is unavailable."
     property var profileEntries: []
+    property bool engineAvailable: false
 
     readonly property bool opened: panelLoader.item
         ? panelLoader.item.opened === true
@@ -48,6 +54,7 @@ BarWidget {
         panelLoader.item.hostWidget = root
         panelLoader.item.profileEntries = root.profileEntries
         panelLoader.item.profileError = root.profileError
+        panelLoader.item.engineAvailable = root.engineAvailable
     }
 
     function refreshProfile() {
@@ -61,6 +68,7 @@ BarWidget {
         var hasActiveProfile = false
 
         root.profileError = ""
+        root.engineAvailable = true
 
         for (var index = 0; index < lines.length; index++) {
             var line = lines[index]
@@ -119,6 +127,7 @@ BarWidget {
             root.profileLabel = "Unavailable"
             root.profileError = "The VoxTypePersonas engine or configuration is unavailable."
             root.profileEntries = []
+            root.engineAvailable = false
             root.injectPanel()
         }
     }
@@ -136,15 +145,37 @@ BarWidget {
         }
     }
 
-    WidgetButton {
+    BarIconButton {
         id: button
 
         anchors.fill: parent
         bar: root.bar
-        text: root.profileLabel
-        tooltipText: root.profileError === ""
+        active: !root.engineAvailable
+        iconComponent: Component {
+            Item {
+                Image {
+                    id: personaIconSource
+
+                    anchors.fill: parent
+                    source: Qt.resolvedUrl("assets/icons/persona-spark-solid.svg")
+                    fillMode: Image.PreserveAspectFit
+                    visible: false
+                    layer.enabled: true
+                }
+
+                MultiEffect {
+                    anchors.fill: personaIconSource
+                    source: personaIconSource
+                    colorization: 1.0
+                    colorizationColor: root.engineAvailable
+                        ? (root.bar ? root.bar.barForeground : Color.foreground)
+                        : (root.bar ? root.bar.urgent : Color.urgent)
+                }
+            }
+        }
+        tooltipText: root.engineAvailable
             ? "VoxTypePersonas: " + root.profileLabel
-            : root.profileError
+            : "VoxTypePersonas"
 
         onPressed: function(buttonCode) {
             if (buttonCode === Qt.LeftButton)

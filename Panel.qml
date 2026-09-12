@@ -15,6 +15,7 @@ Panel {
     property var profileEntries: []
     property string profileError: ""
     property string actionError: ""
+    property bool engineAvailable: false
 
     function open() {
         root.controller.show()
@@ -55,6 +56,12 @@ Panel {
         setActiveProcess.running = true
     }
 
+    function refreshProfiles() {
+        root.actionError = ""
+        if (root.hostWidget)
+            root.hostWidget.refreshProfile()
+    }
+
     KeyboardPanel {
         id: panel
 
@@ -84,6 +91,7 @@ Panel {
                 Text {
                     width: parent.width
                     text: "VoxTypePersonas"
+                    visible: root.engineAvailable
                     color: root.barForeground
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
                     font.pixelSize: Style.font.subtitle
@@ -92,7 +100,27 @@ Panel {
 
                 Text {
                     width: parent.width
+                    text: "Refresh"
+                    visible: root.engineAvailable
+                    color: root.barForeground
+                    opacity: refreshMouseArea.containsMouse ? 1 : 0.7
+                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.caption
+
+                    MouseArea {
+                        id: refreshMouseArea
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.refreshProfiles()
+                    }
+                }
+
+                Text {
+                    width: parent.width
                     text: "Select the profile for the next dictation."
+                    visible: root.engineAvailable
                     color: root.barForeground
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
                     font.pixelSize: Style.font.body
@@ -102,13 +130,14 @@ Panel {
                 Rectangle {
                     width: parent.width
                     height: 1
+                    visible: root.engineAvailable
                     color: root.barForeground
                     opacity: 0.2
                 }
 
                 Text {
                     width: parent.width
-                    visible: root.profileError !== ""
+                    visible: root.engineAvailable && root.profileError !== ""
                     text: root.profileError
                     color: root.barForeground
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
@@ -116,8 +145,18 @@ Panel {
                     wrapMode: Text.WordWrap
                 }
 
+                Text {
+                    width: parent.width
+                    visible: root.engineAvailable && root.profileError === "" && root.profileEntries.length === 0
+                    text: "No profiles are available."
+                    color: root.barForeground
+                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.caption
+                    wrapMode: Text.WordWrap
+                }
+
                 Repeater {
-                    model: root.profileEntries
+                    model: root.engineAvailable ? root.profileEntries : []
 
                     delegate: Item {
                         id: profileRow
@@ -162,12 +201,23 @@ Panel {
 
                 Text {
                     width: parent.width
-                    visible: root.actionError !== ""
+                    visible: root.engineAvailable && root.actionError !== ""
                     text: root.actionError
                     color: root.barForeground
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
                     font.pixelSize: Style.font.caption
                     wrapMode: Text.WordWrap
+                }
+
+                Button {
+                    width: parent.width
+                    visible: !root.engineAvailable
+                    text: "Install engine"
+                    foreground: root.barForeground
+                    fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+                    bordered: true
+                    // Phase 11 adds the explicit confirmation and verified install flow.
+                    onClicked: {}
                 }
             }
         }

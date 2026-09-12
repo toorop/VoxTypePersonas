@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 9 are complete and have been pushed to `origin/main`. Phase 10 is in progress: the current Omarchy plugin contract has been reviewed, but no plugin source has been created. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
+Phases 0 through 10 are complete. Phase 10 is ready to commit and push: the Omarchy bar widget, anchored selector, unavailable-engine onboarding shell, and selected theme-tinted persona icon have been visually reviewed in a live Omarchy session. Phase 11 — secure engine discovery, installation, and rollback — is next. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
 
 ## Completed work
 
@@ -294,6 +294,95 @@ Phases 0 through 9 are complete and have been pushed to `origin/main`. Phase 10 
 - No shell wrapper, provider request, secret value, dictated text, Voxtype change, or Omarchy system configuration is involved.
 - Ran `omarchy plugin validate .` successfully and `git diff --check` with no whitespace errors. The installed `qmllint` returned success but continued to report the recorded unresolved `qs.*` module warnings; the local linter's delegate-scope warnings were reduced by qualifying model data.
 
+### 2026-09-12 — Phase 10: selector refresh and empty/error states (in progress)
+
+- Added an explicit Refresh action to the panel. It re-runs the widget's read-only profile-list command and clears the previous action error.
+- Added distinct panel states for unavailable configuration/engine, an empty profile list, and a failed profile activation. All messages are fixed and non-sensitive.
+- Ran `omarchy plugin validate .` successfully and `git diff --check` with no whitespace errors. The installed `qmllint` returned success with the recorded unresolved `qs.*` module warnings from the packaged-shell layout.
+
+### 2026-09-12 — Phase 10 foundation review (awaiting visual test)
+
+- Rechecked JSON syntax, `omarchy plugin validate .`, and `git diff --check`; all passed.
+- Confirmed the manifest declares only `bar-widget`; both QML files use the fixed plugin module ID; Panel remains loaded only by BarWidget; Escape, Refresh, unavailable, empty-list, and activation-failure states are present.
+- Confirmed the widget uses direct command arrays for `profiles list` and `profiles set-active`, without a shell wrapper.
+- Confirmed that the target user-owned development-plugin directory `~/.config/omarchy/plugins/io.github.toorop.voxtype-personas` did not exist before installation, so the test copy could not overwrite a known local plugin folder.
+- With explicit user authorization, installed the three plugin source files (`manifest.json`, `BarWidget.qml`, and `Panel.qml`) as a temporary development copy in that directory. No Voxtype configuration, release binary, or existing plugin was changed.
+- Requested a plugin rescan and enablement. Enablement reported that the plugin was unknown; subsequent checks confirmed that no `omarchy-shell`, `quickshell`, or `Hyprland` process is available to this command session. `omarchy plugin list --json` and `omarchy plugin validate` consequently report that the Omarchy shell is not running.
+- The visual test is blocked only until commands can be run from an active Omarchy graphical session. The development copy remains ready for that test.
+
+### 2026-09-12 — Phase 10: first visual test
+
+- The user rescanned and enabled the temporary development copy from an active Omarchy session.
+- Visual inspection confirmed that the bar widget and its anchored panel load successfully. The panel’s title, refresh affordance, explanatory copy, divider, and empty-profile state render as intended with the active Omarchy theme.
+- The bar label remains `Loading…` and the panel has no profiles because the release engine binary is not installed on the user PATH yet. The widget currently invokes the release command name directly; a repository-local `cargo` build is deliberately not an implicit runtime dependency.
+- Treat the persistent loading state as a widget robustness defect: when the command cannot be started, the visible state should settle on the existing non-sensitive `Unavailable` state rather than retaining the initial loading label. Address this in the next approved Phase 10 sub-step.
+
+### 2026-09-12 — Phase 10: unavailable-engine fallback (awaiting visual confirmation)
+
+- Changed the initial bar state from `Loading…` to the existing non-sensitive `Unavailable` fallback. This covers a Quickshell process that cannot start because the release engine command is not present; such a failure does not necessarily emit `Process.exited`.
+- A successful `profiles list` response still replaces the fallback with the active profile label; normal nonzero exits retain the same fallback.
+- Ran `omarchy plugin validate .`, `qmllint`, and `git diff --check`. Manifest validation and whitespace checks passed; `qmllint` returned success with the already-recorded unresolved packaged Omarchy module warnings.
+- Copied the updated `BarWidget.qml` to the active temporary development-plugin directory. Omarchy’s local plugin watcher should hot-reload the widget without disabling it or manually rescanning.
+- The automatic reload/rescan did not replace the already-mounted bar-widget instance. Restarting the Omarchy shell rebuilt it and confirmed that the new `Unavailable` fallback works as intended.
+- Visual review found a UX issue in the unavailable state: the panel still leads with profile-selection copy even though the engine/configuration makes selection impossible. Replace this with a dedicated onboarding state that explains that the engine must be installed before profiles can be selected.
+
+### 2026-09-12 — Phase 10: engine-install onboarding shell (awaiting visual confirmation)
+
+- Replaced the visible `Unavailable` bar text with Omarchy’s microphone glyph (`󰍬`). The normal bar foreground is intentionally retained; engine activity colouring is deferred because no engine activity-status contract exists yet.
+- Added an explicit `engineAvailable` state to separate an absent/unstartable engine from a working engine with profiles to display.
+- When the engine is unavailable, the panel now displays only an `Install engine` button. The button is deliberately inert: Phase 11 will add its explicit confirmation and verified release-installation flow.
+- When the engine is available, the existing Refresh, profile-selection guidance, error/empty states, and selector remain available.
+- Ran `omarchy plugin validate .`, `qmllint`, and `git diff --check`. Manifest validation and whitespace checks passed; `qmllint` returned success with the recorded unresolved packaged Omarchy module warnings.
+- Copied the updated `BarWidget.qml` and `Panel.qml` to the active temporary development-plugin directory. Restart the Omarchy shell to force a reliable reconstruction of the mounted widget for visual review.
+
+### 2026-09-12 — Phase 10: themed unavailable state refinement (awaiting visual confirmation)
+
+- Set the microphone icon to the Omarchy `WidgetButton` active state while the engine is unavailable. The icon therefore uses the theme’s `urgent` colour (red in the tested theme), without hard-coding a colour and while retaining automatic theme adaptation.
+- Replaced the hand-drawn install control with Omarchy’s native `Button` component. The previous rectangle opacity also attenuated its child text and made it nearly illegible; the native button gives the text, hover, fill, and border theme-controlled contrast.
+- Ran `omarchy plugin validate .`, `qmllint`, and `git diff --check`. Manifest validation and whitespace checks passed; `qmllint` returned success with the previously recorded packaged-module warnings.
+- Copied the updated QML files to the active temporary development-plugin directory. Restart the Omarchy shell to force a reliable visual rebuild.
+
+### 2026-09-12 — Phase 10: icon direction decision
+
+- The microphone glyph was accepted as a useful temporary activity/status indicator but rejected as the product identity: it is visually associated with VoxType’s speech-to-text action and would be ambiguous when shown beside it.
+- The approved product-icon direction is a small original vector persona mark: a minimal stylized head/profile with a subtle transformation accent. It should remain distinct at bar size and be tintable by Omarchy theme state (normal, urgent, and future activity states).
+
+### 2026-09-12 — Phase 10: custom persona icon candidates (awaiting choice)
+
+- Added three standalone, theme-tintable SVG candidates under `assets/icons/` for direct review in an editor rather than repeated shell reloads:
+  - `persona-spark.svg`: an approachable person silhouette with transformation sparkles;
+  - `persona-profile.svg`: a more distinctive head/profile with a transformation accent;
+  - `persona-constellation.svg`: a person silhouette with connected choice/personality marks.
+- The candidates use `currentColor`, have a 64×64 view box, and were XML-validated with `xmllint`. They are not wired into the active widget yet.
+
+### 2026-09-12 — Phase 10: solid icon candidates (awaiting choice)
+
+- The user requested denser, filled iconography for better legibility at bar size while retaining the Spark concept.
+- Added three additional XML-validated, theme-tintable SVG candidates without removing the outline versions:
+  - `persona-spark-solid.svg`: filled person silhouette with solid transformation sparkles;
+  - `persona-profiles-solid.svg`: two overlapping filled personas with a transformation sparkle;
+  - `persona-profile-solid.svg`: a filled side-profile persona mark with a transformation sparkle.
+- These candidates are not wired into the active widget yet.
+
+### 2026-09-12 — Phase 10: selected icon bar test (awaiting visual confirmation)
+
+- The user selected `assets/icons/persona-spark-solid.svg` as the current leading candidate without removing any other icon drafts.
+- Switched the bar control from text-only `WidgetButton` to Omarchy’s `BarIconButton` and rendered the selected SVG through a QML theme-tint effect.
+- The custom icon uses the active theme’s urgent colour when the engine is unavailable and normal bar foreground when it is available; the SVG itself remains colour-neutral and reusable.
+- Ran `omarchy plugin validate .`, `qmllint`, `xmllint`, and `git diff --check`. Manifest, SVG XML, and whitespace checks passed; `qmllint` returned success with the recorded packaged-module warnings.
+- Copied the changed `BarWidget.qml` and selected SVG to the active temporary development-plugin directory. Restart the Omarchy shell to force a reliable visual rebuild.
+- Initial visual testing showed the SVG rendered black: Qt resolved the SVG's `currentColor` before the first in-place effect was applied.
+- Changed the rendering to Omarchy’s established symbolic-icon pattern: a hidden layered source `Image` plus a separate visible `MultiEffect` with `colorization: 1.0`. This should correctly tint the black SVG source with the bar's urgent or foreground colour.
+- Re-ran manifest validation, `qmllint`, and `git diff --check`; the checks passed with the recorded packaged-module warnings. Copied the corrected `BarWidget.qml` to the active development-plugin directory.
+- The revised effect still rendered black because `MultiEffect.colorization` preserves source luminance: the SVG's `currentColor` resolves to black in Qt and cannot become bright red through that operation.
+- Changed only the selected SVG into a white symbolic mask, which retains its alpha shape while allowing the separate theme-tint effect to supply urgent or normal colour. XML, manifest, and whitespace validation passed; copied the revised SVG to the active development-plugin directory.
+
+### 2026-09-12 — Phase 10 complete
+
+- The user visually confirmed the selected `persona-spark-solid.svg` icon in the active Omarchy bar. It is now correctly tinted with the theme's urgent colour while the engine is unavailable.
+- Removed the five unselected icon candidates; `assets/icons/persona-spark-solid.svg` is the sole retained project icon asset.
+- Phase 10 acceptance is satisfied for the widget foundation: the manifest validates, the widget renders and anchors its own panel, the engine CLI integration and profile selection paths are implemented, and unavailable-engine onboarding is clear without claiming a failure state in the bar. End-to-end profile selection awaits the installed engine delivered by Phase 11.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -338,7 +427,7 @@ Phases 0 through 9 are complete and have been pushed to `origin/main`. Phase 10 
 
 ## Next proposed step
 
-Complete the next small Phase 10 step: add an explicit refresh action and a clear empty/error state to the panel, then review the Phase 10 foundation against its acceptance criteria before running it in an installed plugin directory. Do not begin until the user explicitly approves it.
+Visually review `persona-spark-solid.svg` rendered as the theme-tinted active bar icon. Keep all candidate SVGs until a final icon decision is confirmed. Do not install the release engine or modify Voxtype configuration during this Phase 10 test.
 
 ## Commit and push status
 
