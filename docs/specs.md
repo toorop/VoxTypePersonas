@@ -158,11 +158,16 @@ voxtype-personas process
 voxtype-personas process --profile <id>
 voxtype-personas profiles list
 voxtype-personas profiles set-active <id>
+voxtype-personas profiles validate <file>...
+voxtype-personas profiles import <file>...
+voxtype-personas profiles export <id> <file>
 voxtype-personas providers test <id>
 voxtype-personas config validate
 ```
 
 `process` without an option uses the persisted active profile. `process --profile <id>` is intended for testing and automation and does not change persisted active state. `profiles list` exposes each profile's Draft, Ready, or Active state; `profiles set-active` rejects a Draft profile with a clear, non-sensitive diagnostic.
+
+`profiles validate <file>...` is read-only: it parses and validates every requested portable profile and the complete ID set without accessing local configuration. `profiles import <file>...` validates all requested files before an atomic local configuration update, then imports them as Drafts with locally unconfigured provider/model assignments. `profiles export <id> <file>` exports one non-Raw profile as a portable Draft without keys or Secret Service references and refuses to overwrite an existing destination.
 
 ## 8. Data model and portable catalog
 
@@ -193,6 +198,8 @@ If the current Active profile becomes unready, the engine safely resolves to `Ra
 Portable profiles live in `profiles/` and use Markdown with versioned YAML front matter. They are human-editable and may include public provider metadata, a prompt, profile metadata, and limits. They must never contain API keys, Secret Service references, dictated text, or any other user-local secret material.
 
 Every import is validated before acceptance: schema version, required and typed fields, profile-ID uniqueness, supported provider metadata, readiness-independent safety rules, and prohibited content. An invalid or unsafe file is rejected atomically without partially importing data.
+
+The current CLI import maps public prompt, limits, and output-policy data into a local Draft. Provider and model must be configured locally before activation. Exported profiles contain only public provider kind, endpoint, and model metadata, never a local provider ID, API key, or Secret Service reference.
 
 `profiles/example.md` is the reference Draft: it demonstrates the format but deliberately omits provider and model choices. Users must evaluate and adapt prompts for their chosen model.
 

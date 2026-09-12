@@ -6,7 +6,7 @@ The engine receives a local Whisper transcription on standard input and writes o
 
 ## Status
 
-Phase 8 is complete. The engine supports local Ollama, OpenAI-compatible providers, and native Anthropic and Gemini adapters with keys read only from Secret Service.
+Phase 9 is in progress. The engine supports local Ollama, OpenAI-compatible providers, and native Anthropic and Gemini adapters with keys read only from Secret Service. Portable profile validation, Draft-only import, and safe export are available from the CLI.
 
 ## Scope
 
@@ -37,7 +37,7 @@ Phase 8 is complete. The engine supports local Ollama, OpenAI-compatible provide
 
 ## Secret storage
 
-VoxTypePersonas requires the Linux Secret Service API for API keys and has no file-based fallback. The engine uses the stable `org.voxtype-personas/provider/<provider-id>` reference convention; only the reference belongs in configuration. The selected D-Bus adapter is the Rust `secret-service` client with its blocking API and encrypted session support; it will be connected when provider configuration begins to use keys.
+VoxTypePersonas requires the Linux Secret Service API for API keys and has no file-based fallback. The engine uses the stable `org.voxtype-personas/provider/<provider-id>` reference convention; only the reference belongs in configuration. The D-Bus adapter is the Rust `secret-service` client with its blocking API and encrypted session support.
 
 ## Profile readiness and shared profiles
 
@@ -83,8 +83,11 @@ voxtype-personas config validate --defaults
 voxtype-personas config validate --file <path>
 voxtype-personas profiles list
 voxtype-personas profiles set-active <id>
+voxtype-personas profiles validate <file>...
+voxtype-personas profiles import <file>...
+voxtype-personas profiles export <id> <file>
 voxtype-personas process
-voxtype-personas process --profile raw
+voxtype-personas process --profile <id>
 ```
 
 On first use, configuration is created at the XDG path `~/.config/voxtype-personas/config.toml` with owner-only file permissions. The default active persona is Raw. Provider processing is introduced in later roadmap phases.
@@ -92,6 +95,14 @@ On first use, configuration is created at the XDG path `~/.config/voxtype-person
 `process` resolves its selected profile once when the command begins. Raw copies standard input to standard output byte-for-byte and produces no diagnostics. A recoverable provider failure preserves the raw text on standard output, returns success, and emits only a non-sensitive diagnostic on standard error.
 
 Provider output must be non-empty and free of NUL characters. By default, obvious preambles and Markdown framing are also rejected; the per-profile output policy can explicitly allow either form when needed.
+
+### Portable profile workflow
+
+Use `profiles validate` to check one or more Markdown/YAML catalog files without reading, creating, or modifying local XDG configuration. It rejects malformed front matter, unsupported schemas, duplicate IDs, reserved `raw`, and prohibited secret-reference or authorization-like content.
+
+`profiles import` validates every supplied file before it touches local configuration. A successful import atomically creates local Draft profiles with the portable prompt, limits, and output policy; provider and model remain unconfigured and must be set locally before activation. A failed import leaves the prior configuration unchanged.
+
+`profiles export` writes one non-Raw local profile as a portable Draft. It includes only public provider kind, endpoint, and model metadata; it never exports an API key or Secret Service reference. The destination file must not already exist, so export never overwrites a file.
 
 ## Development plan
 

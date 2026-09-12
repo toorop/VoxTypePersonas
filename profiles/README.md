@@ -10,6 +10,30 @@ Before accepting an import, VoxTypePersonas must validate the complete file: its
 
 Contributions should include compatibility notes and should describe how the prompt was evaluated. A profile must not claim model-independent quality or guaranteed results.
 
+## CLI workflow
+
+Validate one or more files without reading or creating local configuration:
+
+```text
+voxtype-personas profiles validate <file>...
+```
+
+Import one or more validated files as local Draft profiles:
+
+```text
+voxtype-personas profiles import <file>...
+```
+
+The engine validates every requested file and all profile IDs before it writes local configuration. A successful import is atomic. It creates a local Draft with the portable prompt, limits, and output policy; provider and model must be configured locally before the profile can become Ready. An invalid file or local ID collision leaves the existing configuration unchanged.
+
+Export one non-Raw local profile to a new portable file:
+
+```text
+voxtype-personas profiles export <id> <file>
+```
+
+Export always writes a Draft and never serializes API keys or Secret Service references. It refuses to overwrite an existing file.
+
 ## Format
 
 ```markdown

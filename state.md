@@ -209,6 +209,13 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Added catalog and CLI integration coverage for safe serialization, parser round-trip, output-file creation, and overwrite refusal.
 - Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 45 unit tests and 12 integration tests passed and formatting/diff checks are clean.
 
+### 2026-09-12 — Phase 9: portable-profile CLI documentation (in progress)
+
+- Updated the root README, catalog README, and functional specification with `profiles validate`, `profiles import`, and `profiles export`.
+- Documented the read-only behavior of validation, all-files-before-write atomic Draft import behavior, safe export contents, protected Raw profile, and export refusal to overwrite a destination file.
+- Corrected the README implementation status to Phase 9 in progress and removed an obsolete statement that Secret Service integration was still pending.
+- Ran `git diff --check`; documentation changes are whitespace-clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -253,7 +260,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: update the user-facing documentation for `profiles validate`, `profiles import`, and `profiles export`, including their Draft-only and safe-file behavior. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: require a valid Secret Service reference for every remote provider kind and include that requirement in Draft/Ready eligibility. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 
