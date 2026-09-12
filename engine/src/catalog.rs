@@ -77,6 +77,17 @@ pub fn parse_portable_profile(source: &str) -> Result<PortableProfile, CatalogEr
     Ok(profile)
 }
 
+pub fn parse_portable_profiles<'a>(
+    sources: impl IntoIterator<Item = &'a str>,
+) -> Result<Vec<PortableProfile>, CatalogError> {
+    let profiles = sources
+        .into_iter()
+        .map(parse_portable_profile)
+        .collect::<Result<Vec<_>, _>>()?;
+    validate_unique_profile_ids(&profiles)?;
+    Ok(profiles)
+}
+
 fn split_front_matter(source: &str) -> Result<(&str, &str), CatalogError> {
     let source = source
         .strip_prefix("---\n")
@@ -147,6 +158,16 @@ fn validate_portable_profile(profile: &PortableProfile) -> Result<(), CatalogErr
     Ok(())
 }
 
+fn validate_unique_profile_ids(profiles: &[PortableProfile]) -> Result<(), CatalogError> {
+    let mut ids = std::collections::BTreeSet::new();
+    for profile in profiles {
+        if !ids.insert(&profile.id) {
+            return Err(CatalogError::DuplicateProfileId(profile.id.clone()));
+        }
+    }
+    Ok(())
+}
+
 fn is_valid_identifier(id: &str) -> bool {
     !id.is_empty()
         && id
@@ -160,6 +181,7 @@ pub enum CatalogError {
     InvalidFrontMatter(serde_yaml::Error),
     UnsupportedSchemaVersion(u32),
     InvalidField(&'static str),
+    DuplicateProfileId(String),
     ProhibitedContent(&'static str),
 }
 
@@ -180,6 +202,12 @@ impl fmt::Display for CatalogError {
             }
             Self::InvalidField(field) => {
                 write!(formatter, "portable profile has an invalid {field}")
+            }
+            Self::DuplicateProfileId(id) => {
+                write!(
+                    formatter,
+                    "portable profile identifier '{id}' is duplicated"
+                )
             }
             Self::ProhibitedContent(kind) => {
                 write!(
@@ -287,5 +315,34 @@ Correct the transcription while preserving the speaker's intent.
             CatalogError::ProhibitedContent("authorization:")
         ));
         assert!(!error.to_string().contains("private-token"));
+    }
+
+    #[test]
+    fn rejects_duplicate_ids_across_a_profile_set() {
+        let first = include_str!("../tests/fixtures/catalog/duplicate-a.md");
+        let second = include_str!("../tests/fixtures/catalog/duplicate-b.md");
+
+        let error = parse_portable_profiles([first, second])
+            .expect_err("duplicate profile identifiers must be rejected");
+
+        assert!(matches!(error, CatalogError::DuplicateProfileId(id) if id == "duplicate"));
+    }
+
+    #[test]
+    fn invalid_catalog_fixtures_are_rejected_without_sensitive_diagnostics() {
+        let unsafe_profile = include_str!("../tests/fixtures/catalog/secret-reference.md");
+        let missing_front_matter = include_str!("../tests/fixtures/catalog/no-front-matter.md");
+
+        let secret_error = parse_portable_profile(unsafe_profile)
+            .expect_err("secret-reference fixture must be rejected");
+        assert!(matches!(
+            secret_error,
+            CatalogError::ProhibitedContent("secret_ref")
+        ));
+        assert!(!secret_error.to_string().contains("private-reference"));
+        assert!(matches!(
+            parse_portable_profile(missing_front_matter),
+            Err(CatalogError::MissingFrontMatter)
+        ));
     }
 }

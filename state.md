@@ -175,6 +175,14 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - This sub-step deliberately does not import, export, or persist a portable profile yet.
 - Ran `cargo fmt --check`, `cargo test --workspace`, and `git diff --check`; all 40 unit tests and 7 integration tests passed and formatting/diff checks are clean.
 
+### 2026-09-12 — Phase 9: portable catalog set validation and fixtures (in progress)
+
+- Added validation for a set of parsed portable profiles, rejecting duplicate profile IDs before any future import operation can mutate local configuration.
+- Added reusable catalog fixtures for duplicate IDs, a prohibited secret reference, and missing YAML front matter.
+- Added tests proving duplicate IDs and unsafe or malformed fixtures are rejected with diagnostics that do not disclose the fixture's private reference.
+- This sub-step still performs no import, export, or configuration write.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 42 unit tests and 7 integration tests passed and formatting/diff checks are clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -219,7 +227,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: validate a set of portable profiles together, including duplicate profile-ID detection and reusable invalid catalog fixtures. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: define a read-only CLI validation surface for portable profile files, reusing the catalog parser without importing them. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 
