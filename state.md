@@ -165,6 +165,16 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 - Added an integration test that simulates a persisted Draft active profile and proves raw output preservation, successful exit status, and the absence of dictated text from diagnostics.
 - Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all 35 unit tests and 7 integration tests passed and formatting/diff checks are clean.
 
+### 2026-09-12 — Phase 9: portable profile parsing and safety validation (in progress)
+
+- Added a typed portable-profile catalog module for Markdown files with YAML front matter.
+- Defined the v1 portable Draft metadata contract: schema version, identifier, display name, provider metadata, compatibility notes, limits, output policy, and Markdown-body system prompt.
+- Added strict front-matter parsing, schema/version and typed-field checks, identifier/limit/endpoint validation, and non-sensitive rejection of prohibited secret-reference and authorization-like content.
+- Added tests for valid parsing, malformed or missing front matter, unsupported schemas, invalid metadata, secret-like content, and the shipped `profiles/example.md` fixture.
+- Added the `serde_yaml` dependency and recorded it in `Cargo.lock`.
+- This sub-step deliberately does not import, export, or persist a portable profile yet.
+- Ran `cargo fmt --check`, `cargo test --workspace`, and `git diff --check`; all 40 unit tests and 7 integration tests passed and formatting/diff checks are clean.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -209,7 +219,7 @@ Phases 0 through 8 are complete. The engine supports local Ollama, OpenAI-compat
 
 ## Next proposed step
 
-Complete the next small Phase 9 step: define and validate the portable Markdown plus YAML-front-matter profile format, beginning with parsing and safety validation only. Do not begin until the user explicitly approves it.
+Complete the next small Phase 9 step: validate a set of portable profiles together, including duplicate profile-ID detection and reusable invalid catalog fixtures. Do not begin until the user explicitly approves it.
 
 ## Commit and push status
 
