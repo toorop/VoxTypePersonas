@@ -30,7 +30,18 @@ BarWidget {
     // before the UI can offer a safe installation.
     property bool installationTransactionReady: true
     property string releaseMetadata: ""
+    property string selectedReleaseTag: ""
+    property string selectedReleaseDownloadUrl: ""
     property bool updateAvailable: false
+    property string releaseCheckMode: ""
+
+    readonly property string releaseApiUrl: {
+        var testTag = Quickshell.env("VOXTYPE_PERSONAS_TEST_RELEASE_TAG")
+        if (testTag)
+            return "https://api.github.com/repos/toorop/VoxTypePersonas/releases/tags/" + testTag
+
+        return "https://api.github.com/repos/toorop/VoxTypePersonas/releases/latest"
+    }
 
     readonly property var installationSteps: [
         { id: "preparing", label: "Preparing secure download" },
@@ -50,8 +61,16 @@ BarWidget {
         return dataHome + "/voxtype-personas/bin/voxtype-personas"
     }
 
+    readonly property string engineInstallRoot: {
+        var dataHome = Quickshell.env("XDG_DATA_HOME")
+        if (!dataHome)
+            dataHome = Quickshell.env("HOME") + "/.local/share"
+
+        return dataHome + "/voxtype-personas"
+    }
+
     readonly property string releasePublicKeyPath: {
-        var url = String(Qt.resolvedUrl("assets/keys/release-signing.asc"))
+        var url = String(Qt.resolvedUrl("assets/keys/release-signing.gpg"))
         return decodeURIComponent(url.replace(/^file:\/\//, ""))
     }
 
@@ -98,6 +117,7 @@ BarWidget {
         panelLoader.item.installationError = root.installationError
         panelLoader.item.installationSteps = root.installationSteps
         panelLoader.item.installationTransactionReady = root.installationTransactionReady
+        panelLoader.item.updateAvailable = root.updateAvailable
     }
 
     function refreshProfile() {
@@ -116,16 +136,59 @@ BarWidget {
     }
 
     function beginEngineInstallation() {
+        if (releaseProbe.running || engineInstaller.running)
+            return
         root.installationStage = "metadata"
         root.installationError = ""
+        root.releaseCheckMode = "install"
         releaseProbe.running = true
         root.injectPanel()
+    }
+
+    function checkForUpdate() {
+        if (releaseProbe.running)
+            return
+        root.releaseCheckMode = "update"
+        releaseProbe.running = true
+    }
+
+    function isNewerVersion(candidate, installed) {
+        var next = candidate.replace(/^v/, "").split(".")
+        var current = installed.replace(/^v/, "").split(".")
+        for (var index = 0; index < 3; index++) {
+            var difference = Number(next[index]) - Number(current[index])
+            if (difference !== 0)
+                return difference > 0
+        }
+        return false
     }
 
     function clearEngineInstallationStatus() {
         root.installationStage = ""
         root.installationError = ""
         root.injectPanel()
+    }
+
+    function validReleaseTag(tag) {
+        var testTag = Quickshell.env("VOXTYPE_PERSONAS_TEST_RELEASE_TAG")
+        if (testTag)
+            return tag === testTag && /^v?[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$/.test(tag)
+
+        return /^v?[0-9]+\.[0-9]+\.[0-9]+$/.test(tag)
+    }
+
+    function installationStageFor(stage) {
+        if (stage.startsWith("downloading"))
+            return "downloading"
+        if (stage === "signature")
+            return "signature"
+        if (stage === "checksum" || stage === "reading-manifest")
+            return "checksum"
+        if (stage === "installing" || stage === "staging" || stage.startsWith("promoting") || stage === "preserving")
+            return "installing"
+        if (stage.startsWith("validating") || stage === "extracting")
+            return "validating"
+        return stage
     }
 
     GpgVerifier {
@@ -139,10 +202,39 @@ BarWidget {
         }
     }
 
+    EngineInstaller {
+        id: engineInstaller
+
+        publicKeyPath: root.releasePublicKeyPath
+        installRoot: root.engineInstallRoot
+        engineExecutable: root.engineExecutable
+        architecture: root.hostArchitecture
+        releaseTag: root.selectedReleaseTag
+        allowPrereleaseTest: Boolean(Quickshell.env("VOXTYPE_PERSONAS_TEST_RELEASE_TAG"))
+        downloadBaseUrl: root.selectedReleaseDownloadUrl
+
+        onProgress: function(stage) {
+            root.installationStage = root.installationStageFor(stage)
+            root.injectPanel()
+        }
+        onSucceeded: {
+            root.installationStage = ""
+            root.installationError = ""
+            versionProcess.command = [root.engineExecutable, "version"]
+            versionProcess.running = true
+            root.injectPanel()
+        }
+        onFailed: function(message) {
+            root.installationStage = ""
+            root.installationError = message
+            root.injectPanel()
+        }
+    }
+
     Process {
         id: releaseProbe
 
-        command: ["curl", "--fail", "--location", "--silent", "--show-error", "--max-time", "15", "https://api.github.com/repos/toorop/VoxTypePersonas/releases/latest"]
+        command: ["curl", "--fail", "--location", "--silent", "--show-error", "--proto", "=https", "--tlsv1.2", "--max-time", "15", root.releaseApiUrl]
         running: false
 
         stdout: StdioCollector {
@@ -152,17 +244,42 @@ BarWidget {
 
         onExited: function(exitCode, exitStatus) {
             if (exitCode !== 0) {
+                if (root.releaseCheckMode === "update") {
+                    root.releaseCheckMode = ""
+                    return
+                }
                 root.installationStage = ""
                 root.installationError = "No stable engine release is available yet."
                 root.injectPanel()
                 return
             }
 
-            if (!/"tag_name"\s*:\s*"v?[0-9]+\.[0-9]+\.[0-9]+"/.test(root.releaseMetadata)) {
+            var match = root.releaseMetadata.match(/"tag_name"\s*:\s*"([^"]+)"/)
+            if (!match || !root.validReleaseTag(match[1])) {
+                if (root.releaseCheckMode === "update") {
+                    root.releaseCheckMode = ""
+                    return
+                }
                 root.installationStage = ""
                 root.installationError = "The published release information is invalid."
                 root.injectPanel()
+                return
             }
+
+            if (root.releaseCheckMode === "update") {
+                root.updateAvailable = root.isNewerVersion(match[1], root.engineVersion)
+                root.releaseCheckMode = ""
+                if (root.updateAvailable && !updateNotification.running)
+                    updateNotification.running = true
+                root.injectPanel()
+                return
+            }
+
+            root.selectedReleaseTag = match[1]
+            root.selectedReleaseDownloadUrl = "https://github.com/toorop/VoxTypePersonas/releases/download/"
+                + root.selectedReleaseTag + "/"
+            root.releaseCheckMode = ""
+            engineInstaller.start()
         }
     }
 
@@ -190,6 +307,7 @@ BarWidget {
         root.engineStatus = "installed"
         root.engineAvailable = true
         root.refreshProfile()
+        root.checkForUpdate()
         root.injectPanel()
     }
 
@@ -303,6 +421,13 @@ BarWidget {
         }
     }
 
+    Process {
+        id: updateNotification
+
+        command: ["notify-send", "--app-name=VoxTypePersonas", "--urgency=normal", "--expire-time=5000", "VoxTypePersonas", "Update available"]
+        running: false
+    }
+
     Loader {
         id: panelLoader
 
@@ -340,7 +465,7 @@ BarWidget {
                     colorization: 1.0
                     colorizationColor: root.engineAvailable
                         ? (root.updateAvailable
-                            ? Color.accent
+                            ? (root.bar ? root.bar.urgent : Color.urgent)
                             : (root.bar ? root.bar.barForeground : Color.foreground))
                         : (root.bar ? root.bar.urgent : Color.urgent)
                 }

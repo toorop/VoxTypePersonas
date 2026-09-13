@@ -18,13 +18,18 @@ Panel {
     property bool engineAvailable: false
     property string engineStatus: "checking"
     property string engineVersion: ""
-    property bool installConfirmationVisible: false
     property string installationStage: ""
     property string installationError: ""
     property var installationSteps: []
     property bool installationTransactionReady: false
+    property bool updateAvailable: false
 
     function installationMessage() {
+        if (root.engineAvailable)
+            return root.installationError !== ""
+                ? "The engine update could not be completed."
+                : "Updating the VoxTypePersonas engine…"
+
         if (root.engineStatus === "unsupported-architecture")
             return "This computer architecture is not supported."
         if (root.engineStatus === "checking")
@@ -47,18 +52,7 @@ Panel {
         return root.engineStatus === "invalid" ? "Replace engine" : "Install engine"
     }
 
-    function showInstallConfirmation() {
-        root.installConfirmationVisible = true
-        if (root.hostWidget)
-            root.hostWidget.clearEngineInstallationStatus()
-    }
-
-    function cancelInstallConfirmation() {
-        root.installConfirmationVisible = false
-    }
-
     function confirmEngineInstallation() {
-        root.installConfirmationVisible = false
         if (root.hostWidget)
             root.hostWidget.beginEngineInstallation()
     }
@@ -142,6 +136,26 @@ Panel {
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
                     font.pixelSize: Style.font.subtitle
                     font.bold: true
+                }
+
+                Text {
+                    width: parent.width
+                    visible: root.engineAvailable && root.updateAvailable && root.installationStage === ""
+                    text: "Update available"
+                    color: root.bar ? root.bar.urgent : Color.urgent
+                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.caption
+                    font.bold: true
+                }
+
+                Button {
+                    width: parent.width
+                    visible: root.engineAvailable && root.updateAvailable && root.installationStage === ""
+                    text: "Update engine"
+                    foreground: root.bar ? root.bar.urgent : Color.urgent
+                    fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+                    bordered: true
+                    onClicked: root.confirmEngineInstallation()
                 }
 
                 Text {
@@ -257,7 +271,7 @@ Panel {
 
                 Text {
                     width: parent.width
-                    visible: !root.engineAvailable
+                    visible: !root.engineAvailable || root.installationStage !== "" || root.installationError !== ""
                     text: "Engine installation"
                     color: root.barForeground
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
@@ -267,7 +281,7 @@ Panel {
 
                 Text {
                     width: parent.width
-                    visible: !root.engineAvailable
+                    visible: !root.engineAvailable || root.installationStage !== "" || root.installationError !== ""
                     text: root.installationMessage()
                     color: root.barForeground
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
@@ -275,31 +289,8 @@ Panel {
                     wrapMode: Text.WordWrap
                 }
 
-                Text {
-                    width: parent.width
-                    visible: !root.engineAvailable && root.installConfirmationVisible
-                    text: "Install a signed engine for " + (root.hostWidget
-                        ? root.hostWidget.hostArchitecture : "this computer") + "?"
-                    color: root.barForeground
-                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                    font.pixelSize: Style.font.body
-                    font.bold: true
-                    wrapMode: Text.WordWrap
-                }
-
-                Text {
-                    width: parent.width
-                    visible: !root.engineAvailable && root.installConfirmationVisible
-                    text: "The release signature and archive checksum will be verified before installation."
-                    color: root.barForeground
-                    opacity: 0.75
-                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                    font.pixelSize: Style.font.caption
-                    wrapMode: Text.WordWrap
-                }
-
                 Repeater {
-                    model: !root.engineAvailable && root.installationStage !== ""
+                    model: root.installationStage !== ""
                         ? root.installationSteps : []
 
                     delegate: Text {
@@ -318,7 +309,7 @@ Panel {
 
                 Text {
                     width: parent.width
-                    visible: !root.engineAvailable && root.installationError !== ""
+                    visible: root.installationError !== ""
                     text: root.installationError
                     color: root.barForeground
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
@@ -328,7 +319,7 @@ Panel {
 
                 Button {
                     width: parent.width
-                    visible: !root.engineAvailable && !root.installConfirmationVisible
+                    visible: !root.engineAvailable
                         && (root.installationStage === "" || root.installationError !== "")
                     enabled: root.installationTransactionReady
                         && root.engineStatus !== "unsupported-architecture"
@@ -342,25 +333,6 @@ Panel {
                     onClicked: root.confirmEngineInstallation()
                 }
 
-                Button {
-                    width: parent.width
-                    visible: !root.engineAvailable && root.installConfirmationVisible
-                    text: "Cancel"
-                    foreground: root.barForeground
-                    fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
-                    bordered: true
-                    onClicked: root.cancelInstallConfirmation()
-                }
-
-                Button {
-                    width: parent.width
-                    visible: !root.engineAvailable && root.installConfirmationVisible
-                    text: "Download and verify engine"
-                    foreground: root.barForeground
-                    fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
-                    bordered: true
-                    onClicked: root.confirmEngineInstallation()
-                }
             }
         }
     }

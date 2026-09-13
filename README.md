@@ -6,7 +6,7 @@ The engine receives a local Whisper transcription on standard input and writes o
 
 ## Status
 
-Phase 9 is in progress. The engine supports local Ollama, OpenAI-compatible providers, and native Anthropic and Gemini adapters with keys read only from Secret Service. Portable profile validation, Draft-only import, and safe export are available from the CLI.
+Phase 11 is complete. The engine supports local Ollama, OpenAI-compatible providers, and native Anthropic and Gemini adapters with keys read only from Secret Service. The Omarchy plugin discovers a managed engine and installs or updates it through verified signed GitHub Release assets with rollback protection.
 
 ## Scope
 
@@ -33,7 +33,7 @@ Phase 9 is in progress. The engine supports local Ollama, OpenAI-compatible prov
 - Dictated text, prompts, and secrets are not written to logs by default.
 - API keys are stored only in the system keyring; configuration files store secret references, never key values.
 - Every provider, timeout, network, parsing, or invalid-output failure falls back to the original transcription.
-- The plugin asks for confirmation before it downloads, installs, or updates an engine binary.
+- The plugin downloads, installs, or updates an engine binary only after the user explicitly selects Install or Update; that selection starts the complete verified transaction.
 
 ## Secret storage
 

@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 10 are complete and pushed to `origin/main`. The Omarchy bar widget, anchored selector, unavailable-engine onboarding shell, and selected theme-tinted persona icon have been visually reviewed in a live Omarchy session. Phase 11 — secure engine discovery, installation, and rollback — is next. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
+Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, verified engine installation, rollback protection, and selected theme-tinted persona icon have been visually reviewed in a live Omarchy session. Phase 12 — extended settings panel — is next. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
 
 ## Completed work
 
@@ -460,6 +460,17 @@ Phases 0 through 10 are complete and pushed to `origin/main`. The Omarchy bar wi
 - Ran manifest validation, QML lint, and whitespace validation successfully; the QML linter retains only the known unresolved `QProcess::ExitStatus` warning from the packaged module metadata.
 - Updated the temporary development-plugin copy with `BarWidget.qml`, `GpgVerifier.qml`, and the public certificate. Matching SHA-256 hashes were confirmed.
 
+### 2026-09-13 — Phase 11: current handoff (incomplete)
+
+- Phase 11 is **not complete**. Implemented: local engine discovery, single-action installation consent, stable/prerelease metadata probing, an embedded OpenPGP public keyring, and a `GpgVerifier.qml` wrapper around `gpgv`.
+- The committed OpenPGP foundation is `2a6453a` and is pushed to `origin/main`. Subsequent work is uncommitted.
+- A signed x86_64 development prerelease was published at `v0.1.0-test.1`. Its `checksums.txt.asc` was successfully verified with the plugin's binary public keyring. The test assets are staged in `/tmp/voxtype-personas-release-test.uDI6Ff` for the current machine session.
+- GitHub CLI authentication was renewed by the user. The development test channel is opt-in through `VOXTYPE_PERSONAS_TEST_RELEASE_TAG=v0.1.0-test.1`; without it, the plugin requests only GitHub's stable `releases/latest` endpoint.
+- Important correction: `gpgv` cannot use the armored `.asc` public certificate as a keyring. The correct plugin asset is the binary `assets/keys/release-signing.gpg`, exported from the dedicated external GnuPG home. The obsolete `.asc` key asset has been removed in the uncommitted changes.
+- Still required to complete Phase 11: implement and wire one full asynchronous transaction that creates a private temporary directory; downloads the selected archive, `checksums.txt`, and `checksums.txt.asc`; runs `gpgv` against `assets/keys/release-signing.gpg`; checks the selected archive SHA-256; validates archive contents; extracts to staging; runs staged `voxtype-personas version`; atomically promotes it while preserving a rollback binary; cleans temporary files; and reports each real stage in the panel.
+- Also still required: complete Update available UX (non-blocking version result, accented icon, panel action/notification), test the transaction against the signed prerelease, copy the final QML/assets to the development-plugin directory for visual testing, and only then mark Phase 11 complete.
+- User instruction in force: continue autonomously within Phase 11. Do not pause after micro-changes; ask only for a meaningful UI test, a genuine product/security decision, or before starting Phase 12. The user is sensitive to repeated empty status messages; report only completed, verifiable work.
+
 ### 2026-09-13 — Phase 11: single-action installation consent
 
 - User explicitly revised the installation consent policy for a smoother Omarchy onboarding: selecting Install or Update is the sole confirmation. Once selected, the verified transaction progresses automatically until success or a genuine failure.
@@ -470,6 +481,26 @@ Phases 0 through 10 are complete and pushed to `origin/main`. The Omarchy bar wi
 - A valid installed engine must trigger a non-blocking stable-release check when the plugin loads.
 - If a strictly newer engine is available, the persona icon will use Omarchy's theme warning colour and a concise `Update available` notification/action will direct the user to the same single-action verified update flow.
 - Update availability is advisory: it must never interrupt dictation, block profile selection, or download anything until the user selects Update.
+
+### 2026-09-13 — Phase 11: verified installer transaction (in progress)
+
+- Added `EngineInstaller.qml`, an asynchronous, argument-only installation state machine. It uses a mode-`0700` private download directory; downloads only the fixed expected asset names over HTTPS; verifies `checksums.txt.asc` with `gpgv` and the embedded binary keyring; and matches the selected archive hash against the signed manifest.
+- The transaction rejects archives unless they contain exactly one root-level regular `voxtype-personas` file. It extracts to a mode-`0700` staging directory on the installation filesystem, verifies the staged executable and exact release version, then promotes it with a same-filesystem rename.
+- When replacing a working engine, the transaction first preserves it as `voxtype-personas.previous`; a failure to promote the staged binary attempts an immediate restoration. Temporary download and staging directories are removed after success or failure.
+- Wired the installer to the single-click Install/Update action and to real panel stages. Release metadata validates strict stable SemVer by default; the existing prerelease route remains opt-in only through `VOXTYPE_PERSONAS_TEST_RELEASE_TAG` and accepts the corresponding base engine version for this development artifact.
+- Added a non-blocking update probe after valid engine discovery. A newer stable version marks the bar icon with the theme warning colour, sends a concise `Update available` notification, and exposes an explicit Update action; it does not download automatically.
+- Manually validated the actual signed x86_64 prerelease artifact through the same OpenPGP verification, checksum comparison, archive-layout inspection, extraction, permission, and `version` checks used by the transaction. `gpgv` reported the expected release fingerprint and the staged binary reported `0.1.0`.
+- Updated README and contributor signing terminology from Minisign to detached OpenPGP signatures.
+- Ran `omarchy plugin validate .`, `qmllint`, `cargo fmt --check`, `cargo test --workspace`, and `git diff --check`; all commands succeeded. QML lint retains only the known warnings caused by the packaged Omarchy module metadata.
+- Copied the final QML, manifest, icon, and binary keyring to the user-owned development plugin directory and confirmed matching SHA-256 hashes. The current environment has no running `omarchy-shell`, so a live click-through installation test remains the only meaningful outstanding Phase 11 validation.
+- Test-channel correction: `omarchy restart shell` deliberately relaunches Quickshell through Hyprland and does not inherit transient terminal variables or the user systemd manager environment. To make `VOXTYPE_PERSONAS_TEST_RELEASE_TAG` visible to the test shell, it must be set in Hyprland's runtime environment before restarting the shell.
+
+### 2026-09-13 — Phase 11 complete
+
+- Performed the live end-to-end installation test using the signed `v0.1.0-test.1` prerelease through the opt-in Hyprland runtime variable. The user confirmed every panel stage completed and that the widget reached the active Raw profile state.
+- The observed initial stable-release error was expected without a stable release. Corrected the developer test setup: the shell is launched from Hyprland, so the tag must be set with `hyprctl eval 'hl.env(...)'`, not through terminal or systemd user-manager environment variables.
+- Documented the developer-only prerelease procedure, expected successful result, and cleanup commands in `docs/release-format.md`. The stable channel remains the default and never selects prereleases.
+- Reviewed the Phase 11 roadmap acceptance criteria against the transaction implementation, signed-artifact validation, automated checks, and live installation. They are satisfied. The next proposed step is Phase 12, only after user approval.
 
 ## Decisions currently in force
 

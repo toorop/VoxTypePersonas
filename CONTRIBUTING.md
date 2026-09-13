@@ -22,4 +22,4 @@
 - Keep secret references, not secret values, in configuration files.
 - Never log dictated text, system prompts, secrets, or authorization headers.
 - Treat a provider failure as recoverable and preserve the original transcription.
-- Verify release checksums and Minisign signatures before engine installation.
+- Verify release checksums and detached OpenPGP signatures before engine installation.
