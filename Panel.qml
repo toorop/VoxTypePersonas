@@ -339,7 +339,7 @@ Panel {
                     foreground: root.barForeground
                     fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
                     bordered: true
-                    onClicked: root.showInstallConfirmation()
+                    onClicked: root.confirmEngineInstallation()
                 }
 
                 Button {

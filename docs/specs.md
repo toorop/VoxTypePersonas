@@ -86,11 +86,11 @@ The VoxTypePersonas engine is not installed.
 [ Install engine ]
 ```
 
-Clicking the action requests confirmation. Only after confirmation, the plugin:
+Clicking the action starts the verified installation transaction. The plugin then:
 
 1. detects the architecture with `uname -m`;
 2. downloads the appropriate release archive;
-3. verifies the announced SHA-256 checksum and Minisign signature with the embedded public key;
+3. verifies the announced SHA-256 checksum and detached OpenPGP signature with the embedded public keyring;
 4. extracts the binary into the user data directory;
 5. verifies `voxtype-personas version`; and
 6. shows success or an actionable error.
@@ -256,10 +256,10 @@ Each stable release provides at least:
 voxtype-personas-x86_64-linux.tar.gz
 voxtype-personas-aarch64-linux.tar.gz
 checksums.txt
-checksums.txt.minisig
+checksums.txt.asc
 ```
 
-Assets include SHA-256 checksums and a Minisign signature. The plugin embeds the Minisign public key and verifies both signature and checksum before extraction. An Apple Silicon Mac running Omarchy uses Linux `aarch64`, not macOS, and therefore receives the `aarch64-linux` asset.
+Assets include SHA-256 checksums and a detached OpenPGP signature. The plugin embeds an OpenPGP public keyring and uses `gpgv` to verify the signature before checking the selected archive checksum. An Apple Silicon Mac running Omarchy uses Linux `aarch64`, not macOS, and therefore receives the `aarch64-linux` asset.
 
 ### 11.2 CI/CD
 
@@ -269,12 +269,12 @@ CI must at minimum:
 2. build Linux `x86_64` and `aarch64` binaries;
 3. package the fixed archive names and generate checksums;
 4. publish assets for version tags;
-5. sign `checksums.txt` using a Minisign publication key available only through secure CI secrets; and
+5. sign `checksums.txt` using an OpenPGP release key available only through secure CI secrets; and
 6. support a controlled manually triggered prerelease.
 
 ### 11.3 Engine updates
 
-The plugin may report an available update but requires user confirmation before download or replacement. Installation retains the previous version until the replacement is validated and offers straightforward rollback on failure.
+When a valid engine is detected at plugin load, the plugin performs a non-blocking stable-release check. If a strictly newer version is available, the bar icon uses the active Omarchy theme's warning colour and the user receives a concise `Update available` notification/action. Selecting Update is the user's single consent; the verified transaction then runs automatically. Installation retains the previous version until the replacement is validated and offers straightforward rollback on failure.
 
 ## 12. Omarchy integration
 
@@ -315,14 +315,14 @@ VoxTypePersonas must not alter the binding or audio relay. Its integration is li
 8. Portable profiles are validatable Markdown with YAML front matter; unsafe or invalid imports are rejected atomically.
 9. Any provider, network, timeout, or response-format failure returns raw text instead of blocking dictation.
 10. The plugin adds no lock or queue to the existing sequential dictation cycle.
-11. First engine download requires explicit confirmation and verifies the checksum and Minisign signature before installing the appropriate binary.
+11. First engine download requires explicit confirmation and verifies the checksum and detached OpenPGP signature before installing the appropriate binary.
 12. The plugin preserves the existing mute relay and dictation bindings.
 
 ## 15. Implementation decisions left open
 
 - Cache and filtering details for provider model lists when provider metadata is incomplete.
 - Exact wording of shipped example prompts, within the stated language, safety, and voice-preservation rules.
-- Internal implementation of Minisign verification, without relaxing the signature requirement.
+- The embedded public-keyring format and `gpgv` invocation, without relaxing the signature requirement.
 - The exact CLI surface for profile catalog import/export, provided it preserves the validation and atomicity guarantees above.
 
 ## References

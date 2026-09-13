@@ -70,7 +70,7 @@ The directories above are populated only when their corresponding roadmap phase 
 
 ## Development prerequisites
 
-Phase 1 requires a current Rust toolchain with Cargo. Future phases will additionally document the exact Omarchy/Quickshell validation tools, Secret Service requirements, Minisign tooling, and CI environment. No development dependency is installed automatically by this repository.
+Phase 1 requires a current Rust toolchain with Cargo. Future phases will additionally document the exact Omarchy/Quickshell validation tools, Secret Service requirements, OpenPGP release-signing tooling, and CI environment. No development dependency is installed automatically by this repository.
 
 ## Available engine commands
 

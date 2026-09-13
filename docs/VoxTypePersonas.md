@@ -36,7 +36,7 @@ The QML interface can call the engine CLI for state and changes. In particular, 
 
 ## Distribution and secrets
 
-The plugin and engine are one product but separate distributable components. The plugin will install a confirmed release-engine download only after Minisign and SHA-256 verification. v1 supports Linux `x86_64` and `aarch64` releases.
+The plugin and engine are one product but separate distributable components. The plugin will install a confirmed release-engine download only after detached OpenPGP and SHA-256 verification. v1 supports Linux `x86_64` and `aarch64` releases.
 
 API keys are stored only in Linux Secret Service. Local configuration contains opaque references, never keys. A remote profile cannot be activated until the referenced key verifies successfully. There is no file-based secret fallback.
 

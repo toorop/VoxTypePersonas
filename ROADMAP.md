@@ -238,13 +238,15 @@ Acceptance criteria:
 
 Goal: safely install a released engine from the plugin UI only after consent.
 
-1. Define the embedded release channel, public Minisign key, asset naming, and version comparison policy.
+1. Define the embedded release channel, public OpenPGP verification key, asset naming, and version comparison policy.
 2. Detect the host architecture using `uname -m` and map it to `x86_64-linux` or `aarch64-linux`.
 3. Detect whether the installed engine is absent, invalid, outdated, or compatible.
+   - When a valid engine is found, perform a non-blocking stable-release check at plugin load.
+   - Mark an available update with the theme warning colour and expose a concise `Update available` notification/action.
 4. Add UI states that explain the condition and offer an explicit Install or Update action.
-5. Require a confirmation step before every download, installation, or update.
-6. Download the correct archive, `checksums.txt`, and `checksums.txt.minisig` into a private temporary directory.
-7. Verify the Minisign signature using the embedded public key.
+5. Treat the explicit Install or Update action as the single confirmation; after it is clicked, run the complete verified transaction without further prompts.
+6. Download the correct archive, `checksums.txt`, and `checksums.txt.asc` into a private temporary directory.
+7. Verify the detached OpenPGP signature with `gpgv` and the embedded public keyring.
 8. Verify the selected archive SHA-256 against the verified checksum manifest.
 9. Extract into a staging directory; verify the binary using `voxtype-personas version`.
 10. Promote the staged version atomically while preserving the previous working binary for rollback.
@@ -252,7 +254,7 @@ Goal: safely install a released engine from the plugin UI only after consent.
 
 Acceptance criteria:
 
-- No download happens without explicit confirmation.
+- No download happens before the user explicitly selects Install or Update.
 - An untrusted, malformed, or checksum-mismatched archive is never installed.
 - A failed update does not remove a working installed engine.
 
@@ -304,7 +306,7 @@ Goal: produce signed, reproducible engine assets and validate plugin quality.
 2. Build release binaries for Linux `x86_64` and `aarch64`.
 3. Package each binary into the fixed release archive names.
 4. Generate `checksums.txt` with SHA-256 values.
-5. Add a protected signing workflow for `checksums.txt` using the release Minisign private key supplied only through secure CI secrets.
+5. Add a protected signing workflow for `checksums.txt` using the release OpenPGP private key supplied only through secure CI secrets.
 6. Publish release assets on version tags.
 7. Add a manually triggered, controlled prerelease workflow.
 8. Validate plugin manifest and QML in CI when a suitable Omarchy-compatible environment is available; otherwise document the required local validation explicitly.
@@ -312,7 +314,7 @@ Goal: produce signed, reproducible engine assets and validate plugin quality.
 
 Acceptance criteria:
 
-- Every stable release includes two architecture archives, checksums, and a valid Minisign signature.
+- Every stable release includes two architecture archives, checksums, and a valid detached OpenPGP signature.
 - No signing secret is committed or printed in CI logs.
 - A failed build or test blocks publication.
 

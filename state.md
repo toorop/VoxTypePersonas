@@ -429,6 +429,48 @@ Phases 0 through 10 are complete and pushed to `origin/main`. The Omarchy bar wi
 - Renamed the disabled onboarding state to accurately say that this development build cannot install the engine yet. The public key exists, but no installation transaction is enabled until signature and checksum verification are implemented.
 - Ran `omarchy plugin validate .`, `qmllint`, and `git diff --check`; validation passed, with only the previously recorded packaged Omarchy module warnings from `qmllint`.
 
+### 2026-09-13 — Phase 11: release asset contract (complete)
+
+- Confirmed that `curl`, `minisign`, `sha256sum`, `tar`, `mktemp`, `install`, and `uname` are available on the development host.
+- Added `docs/release-format.md`, defining the stable-only channel, fixed asset names, strict tag/version equivalence, checksum format, and a deliberately minimal archive layout: one root executable named `voxtype-personas`, with no links, path traversal, or extra files.
+- The next implementation step is the private-download and verification transaction. It will implement this contract and surface each real progress stage in the panel.
+
+### 2026-09-13 — Phase 11: verification mechanism changed to OpenPGP (in progress)
+
+- User review correctly identified that Minisign is not a guaranteed Omarchy runtime dependency. Requiring users to install it, or bundling a verifier binary, would weaken the onboarding experience.
+- Confirmed that this Omarchy host includes `gpg`, `gpgv`, OpenSSL, OpenSSH, and coreutils. The project will use the standard detached OpenPGP signature `checksums.txt.asc`, verified locally with `gpgv` and a plugin-embedded public keyring; no personal keyring access or keyserver contact is required.
+- Removed the generated Minisign public key from the plugin source. The Minisign private key remains outside the repository and is not deleted, but it is no longer a production release key.
+- Updated the roadmap, specification, README, and release-asset contract from Minisign to detached OpenPGP signatures. A dedicated OpenPGP release key must now be generated before the installer transaction can be implemented.
+
+### 2026-09-13 — Phase 11: OpenPGP release-key storage prepared (in progress)
+
+- Created the dedicated GnuPG home at `~/.local/share/voxtype-personas/release-keys/openpgp` with mode `0700`, separate from the user's personal GnuPG home and from the repository.
+- Confirmed GnuPG 2.4.9 is installed. The next action is an interactive generation of a passphrase-protected, signing-only Ed25519 release key; the user will enter the passphrase locally.
+
+### 2026-09-13 — Phase 11: OpenPGP release key established (awaiting review)
+
+- The user generated the dedicated passphrase-protected Ed25519 signing key in the separate GnuPG home. Its public fingerprint is `F344 FE4D EA72 07D5 D135 EF8D 8A6E 3B95 2E12 DF24`; it expires in September 2029.
+- Exported only the armored public certificate to `assets/keys/release-signing.asc`. The private key remains outside the repository and was not read, copied, or exported.
+- Verified the committed certificate parses to the expected fingerprint, signing capability, and release identity. The detached-signature installation transaction is still pending.
+
+### 2026-09-13 — Phase 11: embedded OpenPGP verifier foundation (awaiting visual review)
+
+- Added `GpgVerifier.qml`, a focused wrapper around `gpgv` that accepts only a plugin-owned public certificate plus manifest and detached-signature paths. It emits generic, non-sensitive verification failures.
+- Connected the verifier to the plugin's packaged `assets/keys/release-signing.asc` path. It does not read the user's personal keyring and is not invoked until the download transaction is connected.
+- Ran manifest validation, QML lint, and whitespace validation successfully; the QML linter retains only the known unresolved `QProcess::ExitStatus` warning from the packaged module metadata.
+- Updated the temporary development-plugin copy with `BarWidget.qml`, `GpgVerifier.qml`, and the public certificate. Matching SHA-256 hashes were confirmed.
+
+### 2026-09-13 — Phase 11: single-action installation consent
+
+- User explicitly revised the installation consent policy for a smoother Omarchy onboarding: selecting Install or Update is the sole confirmation. Once selected, the verified transaction progresses automatically until success or a genuine failure.
+- Updated the roadmap and specification accordingly. The panel now starts the transaction directly from the Install action; it no longer asks the user to confirm the same intent a second time.
+
+### 2026-09-13 — Phase 11: update-availability UX decision
+
+- A valid installed engine must trigger a non-blocking stable-release check when the plugin loads.
+- If a strictly newer engine is available, the persona icon will use Omarchy's theme warning colour and a concise `Update available` notification/action will direct the user to the same single-action verified update flow.
+- Update availability is advisory: it must never interrupt dictation, block profile selection, or download anything until the user selects Update.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.

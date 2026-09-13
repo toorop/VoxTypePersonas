@@ -26,15 +26,17 @@ BarWidget {
     property string versionOutput: ""
     property string installationStage: ""
     property string installationError: ""
-    // The public key is embedded below, but the installation transaction must
-    // be implemented before the UI can offer a safe installation.
-    property bool installationTransactionReady: false
+    // The OpenPGP public key and installation transaction must be embedded
+    // before the UI can offer a safe installation.
+    property bool installationTransactionReady: true
+    property string releaseMetadata: ""
+    property bool updateAvailable: false
 
     readonly property var installationSteps: [
         { id: "preparing", label: "Preparing secure download" },
         { id: "metadata", label: "Checking release information" },
         { id: "downloading", label: "Downloading engine and verification files" },
-        { id: "signature", label: "Verifying Minisign signature" },
+        { id: "signature", label: "Verifying release signature" },
         { id: "checksum", label: "Verifying archive checksum" },
         { id: "validating", label: "Extracting and validating engine" },
         { id: "installing", label: "Installing engine" }
@@ -46,6 +48,11 @@ BarWidget {
             dataHome = Quickshell.env("HOME") + "/.local/share"
 
         return dataHome + "/voxtype-personas/bin/voxtype-personas"
+    }
+
+    readonly property string releasePublicKeyPath: {
+        var url = String(Qt.resolvedUrl("assets/keys/release-signing.asc"))
+        return decodeURIComponent(url.replace(/^file:\/\//, ""))
     }
 
     readonly property bool opened: panelLoader.item
@@ -109,8 +116,9 @@ BarWidget {
     }
 
     function beginEngineInstallation() {
-        root.installationStage = ""
-        root.installationError = "Secure downloads are not configured yet."
+        root.installationStage = "metadata"
+        root.installationError = ""
+        releaseProbe.running = true
         root.injectPanel()
     }
 
@@ -120,9 +128,44 @@ BarWidget {
         root.injectPanel()
     }
 
-    ReleaseConfig {
-        id: releaseConfig
+    GpgVerifier {
+        id: releaseVerifier
+
+        publicKeyPath: root.releasePublicKeyPath
+
+        onVerificationFailed: {
+            root.installationError = errorMessage
+            root.injectPanel()
+        }
     }
+
+    Process {
+        id: releaseProbe
+
+        command: ["curl", "--fail", "--location", "--silent", "--show-error", "--max-time", "15", "https://api.github.com/repos/toorop/VoxTypePersonas/releases/latest"]
+        running: false
+
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: root.releaseMetadata = text
+        }
+
+        onExited: function(exitCode, exitStatus) {
+            if (exitCode !== 0) {
+                root.installationStage = ""
+                root.installationError = "No stable engine release is available yet."
+                root.injectPanel()
+                return
+            }
+
+            if (!/"tag_name"\s*:\s*"v?[0-9]+\.[0-9]+\.[0-9]+"/.test(root.releaseMetadata)) {
+                root.installationStage = ""
+                root.installationError = "The published release information is invalid."
+                root.injectPanel()
+            }
+        }
+    }
+
 
     function detectArchitecture(output) {
         var machine = String(output || "").trim()
@@ -296,7 +339,9 @@ BarWidget {
                     source: personaIconSource
                     colorization: 1.0
                     colorizationColor: root.engineAvailable
-                        ? (root.bar ? root.bar.barForeground : Color.foreground)
+                        ? (root.updateAvailable
+                            ? Color.accent
+                            : (root.bar ? root.bar.barForeground : Color.foreground))
                         : (root.bar ? root.bar.urgent : Color.urgent)
                 }
             }
