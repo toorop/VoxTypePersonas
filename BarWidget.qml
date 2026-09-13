@@ -17,6 +17,36 @@ BarWidget {
     property string profileError: "The VoxTypePersonas engine or configuration is unavailable."
     property var profileEntries: []
     property bool engineAvailable: false
+    // Starting from the missing state also handles a Process that cannot be
+    // started: Quickshell does not guarantee an exited signal in that case.
+    property string engineStatus: "missing"
+    property string engineVersion: ""
+    property string hostArchitecture: ""
+    property string architectureOutput: ""
+    property string versionOutput: ""
+    property string installationStage: ""
+    property string installationError: ""
+    // The public key is embedded below, but the installation transaction must
+    // be implemented before the UI can offer a safe installation.
+    property bool installationTransactionReady: false
+
+    readonly property var installationSteps: [
+        { id: "preparing", label: "Preparing secure download" },
+        { id: "metadata", label: "Checking release information" },
+        { id: "downloading", label: "Downloading engine and verification files" },
+        { id: "signature", label: "Verifying Minisign signature" },
+        { id: "checksum", label: "Verifying archive checksum" },
+        { id: "validating", label: "Extracting and validating engine" },
+        { id: "installing", label: "Installing engine" }
+    ]
+
+    readonly property string engineExecutable: {
+        var dataHome = Quickshell.env("XDG_DATA_HOME")
+        if (!dataHome)
+            dataHome = Quickshell.env("HOME") + "/.local/share"
+
+        return dataHome + "/voxtype-personas/bin/voxtype-personas"
+    }
 
     readonly property bool opened: panelLoader.item
         ? panelLoader.item.opened === true
@@ -55,11 +85,69 @@ BarWidget {
         panelLoader.item.profileEntries = root.profileEntries
         panelLoader.item.profileError = root.profileError
         panelLoader.item.engineAvailable = root.engineAvailable
+        panelLoader.item.engineStatus = root.engineStatus
+        panelLoader.item.engineVersion = root.engineVersion
+        panelLoader.item.installationStage = root.installationStage
+        panelLoader.item.installationError = root.installationError
+        panelLoader.item.installationSteps = root.installationSteps
+        panelLoader.item.installationTransactionReady = root.installationTransactionReady
     }
 
     function refreshProfile() {
-        if (!profileProcess.running)
+        if (root.engineAvailable && !profileProcess.running)
             profileProcess.running = true
+    }
+
+    function resetUnavailableEngine(status) {
+        root.profileLabel = "Unavailable"
+        root.profileError = "The VoxTypePersonas engine is unavailable."
+        root.profileEntries = []
+        root.engineAvailable = false
+        root.engineVersion = ""
+        root.engineStatus = status
+        root.injectPanel()
+    }
+
+    function beginEngineInstallation() {
+        root.installationStage = ""
+        root.installationError = "Secure downloads are not configured yet."
+        root.injectPanel()
+    }
+
+    function clearEngineInstallationStatus() {
+        root.installationStage = ""
+        root.installationError = ""
+        root.injectPanel()
+    }
+
+    ReleaseConfig {
+        id: releaseConfig
+    }
+
+    function detectArchitecture(output) {
+        var machine = String(output || "").trim()
+        if (machine === "x86_64" || machine === "aarch64") {
+            root.hostArchitecture = machine
+            versionProcess.command = [root.engineExecutable, "version"]
+            versionProcess.running = true
+            return
+        }
+
+        root.resetUnavailableEngine("unsupported-architecture")
+    }
+
+    function detectInstalledEngine(output) {
+        var version = String(output || "").trim()
+        if (!/^v?[0-9]+\.[0-9]+\.[0-9]+$/.test(version)) {
+            root.resetUnavailableEngine("invalid")
+            return
+        }
+
+        root.engineVersion = version.startsWith("v") ? version.slice(1) : version
+        root.engineStatus = "installed"
+        root.engineAvailable = true
+        root.refreshProfile()
+        root.injectPanel()
     }
 
     function applyProfileList(output) {
@@ -107,12 +195,53 @@ BarWidget {
     implicitHeight: button.implicitHeight
 
     onBarChanged: injectPanel()
-    Component.onCompleted: refreshProfile()
+    Component.onCompleted: architectureProcess.running = true
+
+    Process {
+        id: architectureProcess
+
+        command: ["uname", "-m"]
+        running: false
+
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: root.architectureOutput = text
+        }
+
+        onExited: function(exitCode, exitStatus) {
+            if (exitCode !== 0) {
+                root.resetUnavailableEngine("unsupported-architecture")
+                return
+            }
+
+            root.detectArchitecture(root.architectureOutput)
+        }
+    }
+
+    Process {
+        id: versionProcess
+
+        running: false
+
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: root.versionOutput = text
+        }
+
+        onExited: function(exitCode, exitStatus) {
+            if (exitCode !== 0) {
+                root.resetUnavailableEngine("invalid")
+                return
+            }
+
+            root.detectInstalledEngine(root.versionOutput)
+        }
+    }
 
     Process {
         id: profileProcess
 
-        command: ["voxtype-personas", "profiles", "list"]
+        command: [root.engineExecutable, "profiles", "list"]
         running: false
 
         stdout: StdioCollector {
@@ -125,9 +254,8 @@ BarWidget {
                 return
 
             root.profileLabel = "Unavailable"
-            root.profileError = "The VoxTypePersonas engine or configuration is unavailable."
+            root.profileError = "The VoxTypePersonas configuration is unavailable."
             root.profileEntries = []
-            root.engineAvailable = false
             root.injectPanel()
         }
     }

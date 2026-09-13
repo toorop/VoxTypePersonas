@@ -16,6 +16,52 @@ Panel {
     property string profileError: ""
     property string actionError: ""
     property bool engineAvailable: false
+    property string engineStatus: "checking"
+    property string engineVersion: ""
+    property bool installConfirmationVisible: false
+    property string installationStage: ""
+    property string installationError: ""
+    property var installationSteps: []
+    property bool installationTransactionReady: false
+
+    function installationMessage() {
+        if (root.engineStatus === "unsupported-architecture")
+            return "This computer architecture is not supported."
+        if (root.engineStatus === "checking")
+            return "Checking the VoxTypePersonas engine…"
+
+        if (root.engineStatus === "invalid") {
+            if (!root.installationTransactionReady)
+                return "The installed engine is invalid. This development build cannot replace it yet."
+
+            return "The installed engine is invalid and cannot be used."
+        }
+
+        if (!root.installationTransactionReady)
+            return "The engine is not installed. This development build cannot install it yet."
+
+        return "The VoxTypePersonas engine is not installed."
+    }
+
+    function installationActionText() {
+        return root.engineStatus === "invalid" ? "Replace engine" : "Install engine"
+    }
+
+    function showInstallConfirmation() {
+        root.installConfirmationVisible = true
+        if (root.hostWidget)
+            root.hostWidget.clearEngineInstallationStatus()
+    }
+
+    function cancelInstallConfirmation() {
+        root.installConfirmationVisible = false
+    }
+
+    function confirmEngineInstallation() {
+        root.installConfirmationVisible = false
+        if (root.hostWidget)
+            root.hostWidget.beginEngineInstallation()
+    }
 
     function open() {
         root.controller.show()
@@ -52,7 +98,7 @@ Panel {
         }
 
         root.actionError = ""
-        setActiveProcess.command = ["voxtype-personas", "profiles", "set-active", entry.id]
+        setActiveProcess.command = [root.hostWidget.engineExecutable, "profiles", "set-active", entry.id]
         setActiveProcess.running = true
     }
 
@@ -209,15 +255,111 @@ Panel {
                     wrapMode: Text.WordWrap
                 }
 
-                Button {
+                Text {
                     width: parent.width
                     visible: !root.engineAvailable
-                    text: "Install engine"
+                    text: "Engine installation"
+                    color: root.barForeground
+                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.subtitle
+                    font.bold: true
+                }
+
+                Text {
+                    width: parent.width
+                    visible: !root.engineAvailable
+                    text: root.installationMessage()
+                    color: root.barForeground
+                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.body
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    width: parent.width
+                    visible: !root.engineAvailable && root.installConfirmationVisible
+                    text: "Install a signed engine for " + (root.hostWidget
+                        ? root.hostWidget.hostArchitecture : "this computer") + "?"
+                    color: root.barForeground
+                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.body
+                    font.bold: true
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    width: parent.width
+                    visible: !root.engineAvailable && root.installConfirmationVisible
+                    text: "The release signature and archive checksum will be verified before installation."
+                    color: root.barForeground
+                    opacity: 0.75
+                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.caption
+                    wrapMode: Text.WordWrap
+                }
+
+                Repeater {
+                    model: !root.engineAvailable && root.installationStage !== ""
+                        ? root.installationSteps : []
+
+                    delegate: Text {
+                        required property var modelData
+
+                        width: parent.width
+                        text: (root.installationStage === modelData.id ? "•  " : "   ")
+                            + modelData.label
+                        color: root.barForeground
+                        opacity: root.installationStage === modelData.id ? 1 : 0.6
+                        font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                        font.pixelSize: Style.font.caption
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    visible: !root.engineAvailable && root.installationError !== ""
+                    text: root.installationError
+                    color: root.barForeground
+                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.caption
+                    wrapMode: Text.WordWrap
+                }
+
+                Button {
+                    width: parent.width
+                    visible: !root.engineAvailable && !root.installConfirmationVisible
+                        && (root.installationStage === "" || root.installationError !== "")
+                    enabled: root.installationTransactionReady
+                        && root.engineStatus !== "unsupported-architecture"
+                        && root.engineStatus !== "checking"
+                    text: root.installationTransactionReady
+                        ? root.installationActionText()
+                        : "Installation unavailable"
                     foreground: root.barForeground
                     fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
                     bordered: true
-                    // Phase 11 adds the explicit confirmation and verified install flow.
-                    onClicked: {}
+                    onClicked: root.showInstallConfirmation()
+                }
+
+                Button {
+                    width: parent.width
+                    visible: !root.engineAvailable && root.installConfirmationVisible
+                    text: "Cancel"
+                    foreground: root.barForeground
+                    fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+                    bordered: true
+                    onClicked: root.cancelInstallConfirmation()
+                }
+
+                Button {
+                    width: parent.width
+                    visible: !root.engineAvailable && root.installConfirmationVisible
+                    text: "Download and verify engine"
+                    foreground: root.barForeground
+                    fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+                    bordered: true
+                    onClicked: root.confirmEngineInstallation()
                 }
             }
         }

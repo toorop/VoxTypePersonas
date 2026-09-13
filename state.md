@@ -384,6 +384,51 @@ Phases 0 through 10 are complete and pushed to `origin/main`. The Omarchy bar wi
 - Phase 10 acceptance is satisfied for the widget foundation: the manifest validates, the widget renders and anchors its own panel, the engine CLI integration and profile selection paths are implemented, and unavailable-engine onboarding is clear without claiming a failure state in the bar. End-to-end profile selection awaits the installed engine delivered by Phase 11.
 - Committed Phase 10 as `743cc71 feat: complete Omarchy widget foundation` and pushed it to `origin/main`.
 
+### 2026-09-13 — Phase 11: release contract proposal (awaiting approval)
+
+- Confirmed that the repository has no published engine release, no release workflow, and no Minisign public key yet. This is expected because release tooling is intentionally deferred to Phase 14.
+- Proposed a single stable GitHub Releases channel at `https://github.com/toorop/VoxTypePersonas/releases/latest`; prereleases must never be selected by the plugin in v1.
+- Confirmed the already-specified fixed stable asset names: `voxtype-personas-x86_64-linux.tar.gz`, `voxtype-personas-aarch64-linux.tar.gz`, `checksums.txt`, and `checksums.txt.minisig`.
+- Proposed strict SemVer comparison after stripping one optional leading `v`: installed and release versions must be `MAJOR.MINOR.PATCH` without prerelease or build metadata; only a strictly newer release is offered as an update. A malformed version is invalid, never treated as newer.
+- A real Minisign public key remains intentionally undefined pending user approval or provision of a key. It must be generated and kept offline/private by the release owner; only its public key will later be embedded in the plugin.
+
+### 2026-09-13 — Phase 11: local engine discovery (awaiting visual review)
+
+- Added read-only host architecture detection through `uname -m`. Only `x86_64` and `aarch64` continue to engine discovery; every other result is treated as unsupported.
+- The widget now resolves the managed engine path as `$XDG_DATA_HOME/voxtype-personas/bin/voxtype-personas`, falling back to `~/.local/share/voxtype-personas/bin/voxtype-personas`. This matches the Rust engine's existing XDG path contract and avoids depending on the Omarchy shell's `PATH`.
+- It verifies the managed binary with `voxtype-personas version` before profile commands are enabled. A successful strict SemVer result marks the engine installed; a nonzero result is invalid; an unstartable binary remains safely classified as missing.
+- Profile listing and activation now use the verified managed-engine path, not an unqualified command name. No download, installation, configuration write, or Voxtype change is performed.
+- Ran `omarchy plugin validate .` and `git diff --check` successfully. `qmllint` exited successfully while retaining the previously recorded unresolved Omarchy-module warnings. The current host reports `x86_64` and has no managed engine installed, which is the expected missing-engine state for this step.
+
+### 2026-09-13 — Phase 11: installation feedback and consent UI (awaiting visual review)
+
+- Added a dedicated unavailable-engine panel with clear states for missing, invalid, checking, and unsupported-architecture engines.
+- Selecting Install or Replace opens a confirmation view that names the target architecture and explains that signature and checksum validation occur before installation. Cancel returns to the prior state; no network action occurs before explicit confirmation.
+- Added the user-visible installation sequence: preparing the secure download, checking release information, downloading the archive and verification files, verifying the Minisign signature, verifying the checksum, extracting and validating the engine, and installing it. The active stage will be highlighted by the forthcoming transaction implementation.
+- Until a real embedded Minisign public key is approved and configured, confirmation safely stops at the first stage with the non-sensitive message `Secure downloads are not configured yet.` It performs no download or installation.
+- Ran `omarchy plugin validate .` and `git diff --check` successfully. `qmllint` exited successfully with the existing unresolved Omarchy-module warnings from the packaged-shell layout.
+
+### 2026-09-13 — Phase 11: blocked-installation UX correction (awaiting visual review)
+
+- Visual review showed that displaying the full progress sequence during confirmation was misleading while a real signing key is absent: a user could mistake the static list for a failed or paused installation.
+- The missing-engine state now explicitly says that secure releases are not configured and presents a disabled `Installation unavailable` control. The confirmation and progress sequence are withheld until a real embedded Minisign public key makes a secure transaction possible.
+- The future confirmation's final action is now labelled `Download and verify engine`, distinct from the initial `Install engine` action. This removes the ambiguous repeated button label.
+- Ran `omarchy plugin validate .` and `git diff --check` successfully; `qmllint` again exited successfully with the recorded packaged-module warnings. Copied the revised QML files to the existing temporary development-plugin directory and confirmed matching SHA-256 hashes.
+
+### 2026-09-13 — Phase 11: release-key storage preparation (in progress)
+
+- Decided that the release private key must remain outside the repository, including ignored files. It will be passphrase-protected and backed up separately; only the public key may enter the repository and plugin.
+- Created the owner-only key directory at `~/.local/share/voxtype-personas/release-keys` with mode `0700`. No key material exists there yet.
+- Minisign is not installed on the host. Its system installation requires an interactive `sudo` password, which this session cannot provide. Key generation is therefore pending local installation of the `minisign` package and an interactive passphrase chosen by the user.
+
+### 2026-09-13 — Phase 11: release signing key established (awaiting visual review)
+
+- Confirmed Minisign 0.12 is installed. The user generated a dedicated passphrase-protected release key pair in `~/.local/share/voxtype-personas/release-keys`.
+- Verified only permissions and the public key: the private key is mode `0600`, the containing directory is mode `0700`, and the public key is mode `0644`. The private key was not read, copied, or added to the repository.
+- Added `ReleaseConfig.qml` with the stable GitHub Releases URL, fixed asset names, checksum file names, and the generated public Minisign key. Only this public verification material is embedded.
+- Renamed the disabled onboarding state to accurately say that this development build cannot install the engine yet. The public key exists, but no installation transaction is enabled until signature and checksum verification are implemented.
+- Ran `omarchy plugin validate .`, `qmllint`, and `git diff --check`; validation passed, with only the previously recorded packaged Omarchy module warnings from `qmllint`.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
