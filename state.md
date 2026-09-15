@@ -550,6 +550,31 @@ Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, ver
 - Validated QML syntax with `/usr/lib/qt6/bin/qmlformat`, the plugin manifest, and whitespace. Copied the updated `Panel.qml` to the enabled development plugin and confirmed matching SHA-256 hashes.
 - The user manually restarted the Omarchy shell and visually validated the view. Draft `Example` remains correctly unavailable in the compact active-profile selector, but is selectable in `Settings… > Profiles` for future management actions.
 
+### 2026-09-15 — Phase 12: Profiles mutation controls (awaiting user validation)
+
+- Added create, rename, duplicate, and two-step delete controls to `Settings… > Profiles`. The delete action explains that it removes an unshared prompt and requires a second explicit click; Raw has no mutation controls.
+- Each control invokes only the managed engine's argument-based `profiles` CLI contract and refreshes the profile list after a successful result. UI failures use a fixed non-sensitive message.
+- Built the development engine and replaced the local managed test binary at `~/.local/share/voxtype-personas/bin/voxtype-personas` with mode `0700`, so it exposes the new profile mutation commands for live testing. This is a development-test replacement, not a signed release installation.
+- Copied the updated `Panel.qml` to the enabled development plugin and confirmed matching SHA-256 hashes. QML syntax, plugin-manifest validation, and `git diff --check` passed.
+- The user must manually restart the Omarchy shell before testing the controls.
+
+### 2026-09-15 — Phase 12: profile deletion diagnosis (in progress)
+
+- The user successfully created, renamed, duplicated, and deleted a created profile, but the second-click confirmation did not visibly delete a duplicated profile.
+- Corrected an initial false diagnosis: the workspace sandbox mounts most of `/home` read-only while exposing the repository as a writable nested mount. That restriction does not apply to the user host. Host-level inspection confirms `/home` is read-write, the configuration is valid, and `voxtype-personas profiles delete copy-of-test` successfully removed the remaining duplicate.
+- The fault is therefore in the panel interaction or its feedback, not Btrfs or engine persistence. Added a fixed non-sensitive mutation error display to the Settings Profiles view; further UI interaction diagnosis remains required.
+- Confirmed there are no open locks on `config.toml`. Added a temporary QML diagnostic that records only the mutation verb, profile ID, and process exit code in the Omarchy shell log; it never records profile content, prompts, or secrets. Deployed it to the development plugin for the next user retry.
+- Root cause identified: `BarWidget.qml` called `trim()` on the complete `profiles list` output before parsing rows. The first inactive row is sorted first and therefore lost its two leading marker spaces; the parser then removed two real ID characters, turning `copy-of-test` into `py-of-test`.
+- Removed the whole-output trim while continuing to ignore blank lines. This preserves every row marker and ID. Validated the QML and plugin manifest, then deployed the updated `BarWidget.qml` to the development plugin with matching SHA-256 hashes. The user must restart the shell before retesting.
+- Improved duplicate naming: the first copy is named `Copy of <name>` and subsequent copies increment visibly as `Copy of <name> 2`, `3`, and so on. The technical profile ID is generated independently from the unique display name. Validated and deployed the updated panel for a future user test.
+- The user noted that broader profile-management ergonomics still feel unclear; defer that product-level UI review until the Phase 12 management surface is complete.
+
+### 2026-09-15 — Phase 12 item 2 complete: profile management
+
+- Completed and visually validated profile creation, renaming, duplication, and deletion with an explicit two-click destructive confirmation. Raw remains protected in both the engine and the panel.
+- Fixed a first-row profile parsing defect that truncated the first inactive profile ID after whole-output whitespace trimming. This specifically affected duplicated profiles because their `copy-of-...` IDs sorted first.
+- Confirmed repeated copies receive distinct visible names and IDs. The next Phase 12 item is to review and reinforce the Raw invariant at the data-model and panel levels.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.

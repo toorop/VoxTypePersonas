@@ -27,6 +27,7 @@ Panel {
     property string view: "selector"
     property string settingsSection: "profiles"
     property string selectedSettingsProfileId: ""
+    property bool deleteProfileConfirmation: false
 
     function installationMessage() {
         if (root.engineAvailable)
@@ -120,6 +121,42 @@ Panel {
             return
 
         root.selectedSettingsProfileId = entry.id
+        root.deleteProfileConfirmation = false
+        profileNameField.text = entry.name
+    }
+
+    function nextProfileId(name) {
+        var base = String(name).toLowerCase().trim()
+            .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+        if (!base)
+            return ""
+        var candidate = base
+        var number = 2
+        while (root.profileEntries.some(function(entry) { return entry.id === candidate })) {
+            candidate = base + "-" + number
+            number += 1
+        }
+        return candidate
+    }
+
+    function nextDuplicateName(name) {
+        var base = "Copy of " + String(name).trim()
+        var candidate = base
+        var number = 2
+        while (root.profileEntries.some(function(entry) { return entry.name === candidate })) {
+            candidate = base + " " + number
+            number += 1
+        }
+        return candidate
+    }
+
+    function mutateProfile(profileArguments) {
+        root.actionError = ""
+        var command = [root.hostWidget.engineExecutable, "profiles"]
+        for (var index = 0; index < profileArguments.length; index++)
+            command.push(String(profileArguments[index]))
+        profileMutationProcess.command = command
+        profileMutationProcess.running = true
     }
 
     function closeSettings() {
@@ -528,6 +565,35 @@ Panel {
                             wrapMode: Text.WordWrap
                         }
 
+                        TextField {
+                            id: createProfileField
+
+                            width: parent.width
+                            placeholderText: "New profile name"
+                            foreground: root.barForeground
+                            accent: root.bar ? root.bar.accent : Color.accent
+                            onAccepted: createProfileButton.clicked()
+                        }
+
+                        Button {
+                            id: createProfileButton
+
+                            width: parent.width
+                            text: "Create profile"
+                            enabled: createProfileField.text.trim() !== "" && !profileMutationProcess.running
+                            foreground: root.barForeground
+                            fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+                            bordered: true
+                            onClicked: {
+                                var id = root.nextProfileId(createProfileField.text)
+                                if (!id) {
+                                    root.actionError = "Enter a valid profile name."
+                                    return
+                                }
+                                root.mutateProfile(["create", id, "--name", createProfileField.text.trim()])
+                            }
+                        }
+
                         Repeater {
                             model: root.profileEntries
 
@@ -599,6 +665,84 @@ Panel {
                                     : "Create, duplicate, rename, and delete controls will appear here."
                             color: root.barForeground
                             opacity: 0.7
+                            font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                            font.pixelSize: Style.font.caption
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Column {
+                            width: parent.width
+                            visible: root.selectedSettingsProfileId !== ""
+                                && root.selectedSettingsProfileId !== "raw"
+                            spacing: Style.space(6)
+
+                            TextField {
+                                id: profileNameField
+
+                                width: parent.width
+                                placeholderText: "Profile name"
+                                foreground: root.barForeground
+                                accent: root.bar ? root.bar.accent : Color.accent
+                            }
+
+                            Button {
+                                width: parent.width
+                                text: "Rename profile"
+                                enabled: profileNameField.text.trim() !== "" && !profileMutationProcess.running
+                                foreground: root.barForeground
+                                fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+                                bordered: true
+                            onClicked: root.mutateProfile(["rename", root.selectedSettingsProfileId,
+                                    "--name", profileNameField.text.trim()])
+                            }
+
+                            Button {
+                                width: parent.width
+                                text: "Duplicate profile"
+                                enabled: !profileMutationProcess.running
+                                foreground: root.barForeground
+                                fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+                                bordered: true
+                                onClicked: {
+                                    var name = root.nextDuplicateName(profileNameField.text)
+                                    var id = root.nextProfileId(name)
+                                    root.mutateProfile(["duplicate", root.selectedSettingsProfileId,
+                                        id, "--name", name])
+                                }
+                            }
+
+                            Button {
+                                width: parent.width
+                                text: root.deleteProfileConfirmation ? "Confirm deletion" : "Delete profile…"
+                                enabled: !profileMutationProcess.running
+                                foreground: root.bar ? root.bar.urgent : Color.urgent
+                                fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+                                bordered: true
+                                onClicked: {
+                                    if (!root.deleteProfileConfirmation) {
+                                        root.deleteProfileConfirmation = true
+                                        return
+                                    }
+                                    root.mutateProfile(["delete", root.selectedSettingsProfileId])
+                                }
+                            }
+
+                            Text {
+                                width: parent.width
+                                visible: root.deleteProfileConfirmation
+                                text: "This removes the profile and its unshared prompt."
+                                color: root.bar ? root.bar.urgent : Color.urgent
+                                font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                                font.pixelSize: Style.font.caption
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Text {
+                            width: parent.width
+                            visible: root.actionError !== ""
+                            text: root.actionError
+                            color: root.bar ? root.bar.urgent : Color.urgent
                             font.family: root.bar ? root.bar.fontFamily : Style.font.family
                             font.pixelSize: Style.font.caption
                             wrapMode: Text.WordWrap
@@ -710,6 +854,26 @@ Panel {
             if (root.hostWidget)
                 root.hostWidget.refreshProfile()
             root.close()
+        }
+    }
+
+    Process {
+        id: profileMutationProcess
+
+        running: false
+
+        onExited: function(exitCode) {
+            if (exitCode !== 0) {
+                root.actionError = "The profile change could not be saved."
+                return
+            }
+
+            root.actionError = ""
+            root.deleteProfileConfirmation = false
+            root.selectedSettingsProfileId = ""
+            createProfileField.text = ""
+            if (root.hostWidget)
+                root.hostWidget.refreshProfile()
         }
     }
 }

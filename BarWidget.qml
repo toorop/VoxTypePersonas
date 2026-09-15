@@ -312,7 +312,9 @@ BarWidget {
     }
 
     function applyProfileList(output) {
-        var lines = String(output || "").trim().split("\n")
+        // Preserve each row's two-character active marker. Trimming the
+        // complete output would strip the marker from the first inactive row.
+        var lines = String(output || "").split("\n")
         var entries = []
         var hasActiveProfile = false
 
@@ -321,7 +323,7 @@ BarWidget {
 
         for (var index = 0; index < lines.length; index++) {
             var line = lines[index]
-            if (line.length < 3)
+            if (line.trim().length === 0)
                 continue
 
             var active = line.startsWith("* ")
