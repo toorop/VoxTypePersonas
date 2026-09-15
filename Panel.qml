@@ -632,8 +632,9 @@ Panel {
                                     anchors.right: settingsProfileName.right
                                     anchors.top: settingsProfileName.bottom
                                     text: settingsProfileRow.modelData.id === "raw"
-                                        ? "Mandatory profile"
+                                        ? "Mandatory profile · raw"
                                         : settingsProfileRow.modelData.state
+                                            + " · " + settingsProfileRow.modelData.id
                                     color: root.barForeground
                                     opacity: 0.7
                                     font.family: root.bar ? root.bar.fontFamily : Style.font.family

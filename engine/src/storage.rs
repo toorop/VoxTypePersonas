@@ -114,6 +114,7 @@ impl ConfigStore {
     pub fn create_draft_profile(&self, id: &str, name: &str) -> Result<Config, StoreError> {
         let mut config = self.load_or_create()?;
         ensure_new_profile_id(&config, id)?;
+        ensure_profile_name_available(&config, name, None)?;
         config.prompts.insert(
             id.to_owned(),
             Prompt {
@@ -147,6 +148,7 @@ impl ConfigStore {
     ) -> Result<Config, StoreError> {
         let mut config = self.load_or_create()?;
         ensure_new_profile_id(&config, target_id)?;
+        ensure_profile_name_available(&config, name, None)?;
         let mut duplicate = config
             .profiles
             .get(source_id)
@@ -179,6 +181,7 @@ impl ConfigStore {
 
     pub fn rename_profile(&self, id: &str, name: &str) -> Result<Config, StoreError> {
         let mut config = self.load_or_create()?;
+        ensure_profile_name_available(&config, name, Some(id))?;
         let profile = config
             .profiles
             .get_mut(id)
@@ -294,6 +297,23 @@ fn ensure_new_profile_id(config: &Config, id: &str) -> Result<(), StoreError> {
     Ok(())
 }
 
+fn ensure_profile_name_available(
+    config: &Config,
+    name: &str,
+    excluded_id: Option<&str>,
+) -> Result<(), StoreError> {
+    let normalized = name.trim().to_lowercase();
+    if normalized.is_empty() {
+        return Err(StoreError::InvalidProfileName);
+    }
+    if config.profiles.iter().any(|(id, profile)| {
+        Some(id.as_str()) != excluded_id && profile.name.trim().to_lowercase() == normalized
+    }) {
+        return Err(StoreError::ProfileNameAlreadyExists(name.trim().to_owned()));
+    }
+    Ok(())
+}
+
 fn verify_profile_secret(
     config: &Config,
     profile_id: &str,
@@ -382,6 +402,8 @@ pub enum StoreError {
     PromptAlreadyExists(String),
     ProtectedRawProfile,
     InvalidProfileReference,
+    InvalidProfileName,
+    ProfileNameAlreadyExists(String),
     SecretVerification(SecretError),
     InvalidConfigPath(PathBuf),
     CreateBackup { path: PathBuf, source: io::Error },
@@ -460,6 +482,10 @@ impl std::fmt::Display for StoreError {
                 formatter,
                 "profile configuration has an invalid prompt reference"
             ),
+            Self::InvalidProfileName => write!(formatter, "profile name cannot be empty"),
+            Self::ProfileNameAlreadyExists(name) => {
+                write!(formatter, "profile name '{name}' already exists")
+            }
             Self::SecretVerification(error) => {
                 write!(formatter, "could not verify the provider key: {error}")
             }
@@ -500,7 +526,10 @@ impl std::error::Error for StoreError {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{DEFAULT_TIMEOUT_MS, Provider, ProviderKind, RAW_PROFILE_ID};
+    use crate::config::{
+        DEFAULT_MAX_INPUT_CHARS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_TIMEOUT_MS, Provider,
+        ProviderKind, RAW_PROFILE_ID,
+    };
     use crate::secrets::InMemorySecretStore;
 
     fn test_store() -> (tempfile::TempDir, ConfigStore) {
@@ -569,6 +598,47 @@ mod tests {
             store.delete_profile(RAW_PROFILE_ID),
             Err(StoreError::ProtectedRawProfile)
         ));
+    }
+
+    #[test]
+    fn profile_names_are_unique_without_blocking_legacy_duplicate_cleanup() {
+        let (_root, store) = test_store();
+        assert!(matches!(
+            store.create_draft_profile("raw-2", "Raw"),
+            Err(StoreError::ProfileNameAlreadyExists(name)) if name == "Raw"
+        ));
+
+        let mut legacy = Config::defaults();
+        legacy.prompts.insert(
+            "raw-2".to_owned(),
+            Prompt {
+                name: "Raw".to_owned(),
+                system: "Legacy prompt.".to_owned(),
+            },
+        );
+        legacy.profiles.insert(
+            "raw-2".to_owned(),
+            Profile {
+                name: "Raw".to_owned(),
+                provider: None,
+                model: None,
+                prompt: Some("raw-2".to_owned()),
+                max_input_chars: DEFAULT_MAX_INPUT_CHARS,
+                max_output_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
+                timeout_ms: DEFAULT_TIMEOUT_MS,
+                output_policy: Default::default(),
+            },
+        );
+        store
+            .paths
+            .ensure_private_directories()
+            .expect("directories exist");
+        store
+            .write_atomically(&legacy)
+            .expect("legacy fixture writes");
+        store
+            .delete_profile("raw-2")
+            .expect("legacy duplicate remains removable");
     }
 
     #[test]

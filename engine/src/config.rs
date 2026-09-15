@@ -184,6 +184,13 @@ impl Config {
 
         if !self.profiles.contains_key(RAW_PROFILE_ID) {
             errors.push("the mandatory raw profile is missing".to_owned());
+        } else if let Some(raw) = self.profiles.get(RAW_PROFILE_ID)
+            && (raw.provider.is_some() || raw.model.is_some() || raw.prompt.is_some())
+        {
+            errors.push(
+                "the mandatory raw profile cannot reference a provider, model, or prompt"
+                    .to_owned(),
+            );
         }
 
         if !self.profiles.contains_key(&self.active_profile) {
@@ -525,6 +532,25 @@ mod tests {
 
         assert!(config.validate().is_ok());
         assert_eq!(config.profile_state("example"), Some(ProfileState::Draft));
+    }
+
+    #[test]
+    fn raw_profile_cannot_reference_post_processing_configuration() {
+        let mut config = Config::defaults();
+        let raw = config
+            .profiles
+            .get_mut(RAW_PROFILE_ID)
+            .expect("raw profile exists");
+        raw.provider = Some("ollama".to_owned());
+
+        let error = config
+            .validate()
+            .expect_err("raw must remain a direct pass-through profile");
+        assert!(
+            error
+                .to_string()
+                .contains("mandatory raw profile cannot reference a provider, model, or prompt")
+        );
     }
 
     #[test]

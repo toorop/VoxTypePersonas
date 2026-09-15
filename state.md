@@ -575,6 +575,25 @@ Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, ver
 - Fixed a first-row profile parsing defect that truncated the first inactive profile ID after whole-output whitespace trimming. This specifically affected duplicated profiles because their `copy-of-...` IDs sorted first.
 - Confirmed repeated copies receive distinct visible names and IDs. The next Phase 12 item is to review and reinforce the Raw invariant at the data-model and panel levels.
 
+### 2026-09-15 — Phase 12 item 3: Raw invariant (awaiting user validation)
+
+- Strengthened configuration validation so the mandatory Raw profile cannot reference a provider, model, or prompt. This preserves Raw as an unconditional direct pass-through path even if configuration is changed outside the panel.
+- The engine already rejects Raw deletion and reserved-ID creation; the panel already hides all mutation controls for Raw.
+- Added a unit test for the invalid Raw post-processing configuration. Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all checks passed with 51 unit tests and 12 integration tests.
+
+### 2026-09-15 — Phase 12: unique profile-name correction (awaiting user validation)
+
+- Added engine-level case-insensitive uniqueness checks for profile display names on creation, duplication, and renaming. The reserved Raw profile name therefore cannot be reused.
+- Existing legacy duplicate names remain loadable and deletable, so a correction does not trap old configurations in an invalid state.
+- Added storage coverage for duplicate-name rejection and removal of a legacy duplicate. Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all checks passed with 52 unit tests and 12 integration tests.
+- Built and deployed the development engine to the managed test path. Confirmed `profiles create raw-4 --name Raw` is rejected with exit code 2 and does not create another profile.
+
+### 2026-09-15 — Phase 12 item 3 complete: Raw and profile-name invariants
+
+- The user visually confirmed the corrected behavior. Removed the two legacy duplicate profiles, `raw-2` and `raw-3`, directly through the engine after the panel could not distinguish their repeated display name from mandatory Raw.
+- Updated the Profiles management view to show each profile's stable ID alongside its state, making legacy or externally created name collisions identifiable. Only `raw` remains.
+- Item 3 is complete. The next Phase 12 item is the multiline prompt editor, validation guidance, and a safe test action.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
