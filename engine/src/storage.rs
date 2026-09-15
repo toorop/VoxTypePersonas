@@ -1,5 +1,7 @@
 use crate::catalog::PortableProfile;
-use crate::config::{CURRENT_SCHEMA_VERSION, Config, Profile, ProfileState, Prompt};
+use crate::config::{
+    CURRENT_SCHEMA_VERSION, Config, Profile, ProfileState, Prompt, RAW_PROFILE_ID,
+};
 use crate::paths::AppPaths;
 use crate::secrets::{SecretError, SecretRef, SecretServiceStore, SecretStore};
 use std::fs::{self, OpenOptions};
@@ -109,6 +111,109 @@ impl ConfigStore {
         Ok(config)
     }
 
+    pub fn create_draft_profile(&self, id: &str, name: &str) -> Result<Config, StoreError> {
+        let mut config = self.load_or_create()?;
+        ensure_new_profile_id(&config, id)?;
+        config.prompts.insert(
+            id.to_owned(),
+            Prompt {
+                name: name.to_owned(),
+                system: "Configure this prompt before activating the profile.".to_owned(),
+            },
+        );
+        config.profiles.insert(
+            id.to_owned(),
+            Profile {
+                name: name.to_owned(),
+                provider: None,
+                model: None,
+                prompt: Some(id.to_owned()),
+                max_input_chars: crate::config::DEFAULT_MAX_INPUT_CHARS,
+                max_output_tokens: crate::config::DEFAULT_MAX_OUTPUT_TOKENS,
+                timeout_ms: crate::config::DEFAULT_TIMEOUT_MS,
+                output_policy: Default::default(),
+            },
+        );
+        config.validate()?;
+        self.write_atomically(&config)?;
+        Ok(config)
+    }
+
+    pub fn duplicate_profile(
+        &self,
+        source_id: &str,
+        target_id: &str,
+        name: &str,
+    ) -> Result<Config, StoreError> {
+        let mut config = self.load_or_create()?;
+        ensure_new_profile_id(&config, target_id)?;
+        let mut duplicate = config
+            .profiles
+            .get(source_id)
+            .cloned()
+            .ok_or(StoreError::UnknownProfile)?;
+        duplicate.name = name.to_owned();
+        if let Some(source_prompt_id) = &duplicate.prompt {
+            let source_prompt = config
+                .prompts
+                .get(source_prompt_id)
+                .cloned()
+                .ok_or(StoreError::InvalidProfileReference)?;
+            if config.prompts.contains_key(target_id) {
+                return Err(StoreError::PromptAlreadyExists(target_id.to_owned()));
+            }
+            config.prompts.insert(
+                target_id.to_owned(),
+                Prompt {
+                    name: name.to_owned(),
+                    system: source_prompt.system,
+                },
+            );
+            duplicate.prompt = Some(target_id.to_owned());
+        }
+        config.profiles.insert(target_id.to_owned(), duplicate);
+        config.validate()?;
+        self.write_atomically(&config)?;
+        Ok(config)
+    }
+
+    pub fn rename_profile(&self, id: &str, name: &str) -> Result<Config, StoreError> {
+        let mut config = self.load_or_create()?;
+        let profile = config
+            .profiles
+            .get_mut(id)
+            .ok_or(StoreError::UnknownProfile)?;
+        profile.name = name.to_owned();
+        config.validate()?;
+        self.write_atomically(&config)?;
+        Ok(config)
+    }
+
+    pub fn delete_profile(&self, id: &str) -> Result<Config, StoreError> {
+        if id == RAW_PROFILE_ID {
+            return Err(StoreError::ProtectedRawProfile);
+        }
+        let mut config = self.load_or_create()?;
+        let removed = config
+            .profiles
+            .remove(id)
+            .ok_or(StoreError::UnknownProfile)?;
+        if config.active_profile == id {
+            config.active_profile = RAW_PROFILE_ID.to_owned();
+        }
+        if let Some(prompt_id) = removed.prompt
+            && !config
+                .profiles
+                .values()
+                .any(|profile| profile.prompt.as_deref() == Some(&prompt_id))
+        {
+            config.prompts.remove(&prompt_id);
+        }
+        config.validate()?;
+        self.write_atomically(&config)?;
+        Ok(config)
+    }
+
     fn load_source(&self, source: &str) -> Result<Config, StoreError> {
         let schema_version = read_schema_version(source)?;
         match schema_version {
@@ -174,6 +279,19 @@ impl ConfigStore {
         set_private_file_permissions(&self.paths.config_file)?;
         Ok(())
     }
+}
+
+fn ensure_new_profile_id(config: &Config, id: &str) -> Result<(), StoreError> {
+    if id == RAW_PROFILE_ID {
+        return Err(StoreError::ProtectedRawProfile);
+    }
+    if config.profiles.contains_key(id) {
+        return Err(StoreError::ProfileAlreadyExists(id.to_owned()));
+    }
+    if config.prompts.contains_key(id) {
+        return Err(StoreError::PromptAlreadyExists(id.to_owned()));
+    }
+    Ok(())
 }
 
 fn verify_profile_secret(
@@ -262,6 +380,8 @@ pub enum StoreError {
     ProfileNotReady(String),
     ProfileAlreadyExists(String),
     PromptAlreadyExists(String),
+    ProtectedRawProfile,
+    InvalidProfileReference,
     SecretVerification(SecretError),
     InvalidConfigPath(PathBuf),
     CreateBackup { path: PathBuf, source: io::Error },
@@ -332,6 +452,14 @@ impl std::fmt::Display for StoreError {
             Self::PromptAlreadyExists(id) => {
                 write!(formatter, "prompt '{id}' already exists")
             }
+            Self::ProtectedRawProfile => write!(
+                formatter,
+                "the mandatory Raw profile cannot be changed this way"
+            ),
+            Self::InvalidProfileReference => write!(
+                formatter,
+                "profile configuration has an invalid prompt reference"
+            ),
             Self::SecretVerification(error) => {
                 write!(formatter, "could not verify the provider key: {error}")
             }
@@ -410,6 +538,37 @@ mod tests {
 
         assert!(config.profiles.contains_key("example"));
         assert_eq!(config.active_profile, RAW_PROFILE_ID);
+    }
+
+    #[test]
+    fn profile_crud_preserves_raw_and_cleans_an_unshared_prompt() {
+        let (_root, store) = test_store();
+        store
+            .create_draft_profile("notes", "Notes")
+            .expect("a draft should be created");
+        let renamed = store
+            .rename_profile("notes", "Meeting notes")
+            .expect("a profile should be renamed");
+        assert_eq!(renamed.profiles["notes"].name, "Meeting notes");
+
+        let duplicated = store
+            .duplicate_profile("example", "example-copy", "Example copy")
+            .expect("a profile and its prompt should be duplicated");
+        assert_eq!(
+            duplicated.profiles["example-copy"].prompt.as_deref(),
+            Some("example-copy")
+        );
+        assert!(duplicated.prompts.contains_key("example-copy"));
+
+        let deleted = store
+            .delete_profile("example-copy")
+            .expect("the duplicate should be deleted");
+        assert!(!deleted.profiles.contains_key("example-copy"));
+        assert!(!deleted.prompts.contains_key("example-copy"));
+        assert!(matches!(
+            store.delete_profile(RAW_PROFILE_ID),
+            Err(StoreError::ProtectedRawProfile)
+        ));
     }
 
     #[test]

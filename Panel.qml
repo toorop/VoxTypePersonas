@@ -26,6 +26,7 @@ Panel {
     property bool updateAvailable: false
     property string view: "selector"
     property string settingsSection: "profiles"
+    property string selectedSettingsProfileId: ""
 
     function installationMessage() {
         if (root.engineAvailable)
@@ -112,6 +113,13 @@ Panel {
 
         root.settingsSection = "profiles"
         root.view = "settings"
+    }
+
+    function selectSettingsProfile(entry) {
+        if (!entry)
+            return
+
+        root.selectedSettingsProfileId = entry.id
     }
 
     function closeSettings() {
@@ -496,14 +504,105 @@ Panel {
                         opacity: 0.2
                     }
 
-                    Text {
+                    Column {
                         width: parent.width
                         visible: root.settingsSection === "profiles"
-                        text: "Profile management will be added in the next settings step."
-                        color: root.barForeground
-                        font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                        font.pixelSize: Style.font.body
-                        wrapMode: Text.WordWrap
+                        spacing: Style.space(8)
+
+                        Text {
+                            width: parent.width
+                            text: "Profiles"
+                            color: root.barForeground
+                            font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                            font.pixelSize: Style.font.body
+                            font.bold: true
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: "Choose a profile to manage. Raw is always protected."
+                            color: root.barForeground
+                            opacity: 0.7
+                            font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                            font.pixelSize: Style.font.caption
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Repeater {
+                            model: root.profileEntries
+
+                            delegate: Rectangle {
+                                id: settingsProfileRow
+
+                                required property var modelData
+
+                                width: parent.width
+                                height: settingsProfileName.implicitHeight
+                                    + settingsProfileState.implicitHeight + Style.space(10)
+                                radius: Style.cornerRadius
+                                color: root.selectedSettingsProfileId === settingsProfileRow.modelData.id
+                                    ? Style.hoverFillFor(root.barForeground,
+                                        root.bar ? root.bar.accent : Color.accent)
+                                    : "transparent"
+
+                                Text {
+                                    id: settingsProfileName
+
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: Style.space(5)
+                                    text: settingsProfileRow.modelData.name
+                                    color: root.barForeground
+                                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                                    font.pixelSize: Style.font.body
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    id: settingsProfileState
+
+                                    anchors.left: settingsProfileName.left
+                                    anchors.right: settingsProfileName.right
+                                    anchors.top: settingsProfileName.bottom
+                                    text: settingsProfileRow.modelData.id === "raw"
+                                        ? "Mandatory profile"
+                                        : settingsProfileRow.modelData.state
+                                    color: root.barForeground
+                                    opacity: 0.7
+                                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                                    font.pixelSize: Style.font.caption
+                                    elide: Text.ElideRight
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.selectSettingsProfile(settingsProfileRow.modelData)
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: parent.width
+                            height: 1
+                            color: root.barForeground
+                            opacity: 0.2
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: root.selectedSettingsProfileId === ""
+                                ? "Select a profile to reveal its management actions."
+                                : root.selectedSettingsProfileId === "raw"
+                                    ? "Raw cannot be renamed or deleted."
+                                    : "Create, duplicate, rename, and delete controls will appear here."
+                            color: root.barForeground
+                            opacity: 0.7
+                            font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                            font.pixelSize: Style.font.caption
+                            wrapMode: Text.WordWrap
+                        }
                     }
 
                     Text {

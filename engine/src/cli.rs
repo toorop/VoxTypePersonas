@@ -45,6 +45,25 @@ struct ProfilesArgs {
 #[derive(Debug, Subcommand)]
 enum ProfilesCommand {
     List,
+    Create {
+        id: String,
+        #[arg(long)]
+        name: String,
+    },
+    Duplicate {
+        source_id: String,
+        target_id: String,
+        #[arg(long)]
+        name: String,
+    },
+    Rename {
+        id: String,
+        #[arg(long)]
+        name: String,
+    },
+    Delete {
+        id: String,
+    },
     SetActive {
         id: String,
     },
@@ -299,10 +318,38 @@ fn profiles(command: ProfilesCommand) -> Result<(), CliError> {
             println!("Active profile set to '{}'.", config.active_profile);
             Ok(())
         }
+        ProfilesCommand::Create { id, name } => mutate_profile(
+            |store| store.create_draft_profile(&id, &name),
+            "Created Draft profile.",
+        ),
+        ProfilesCommand::Duplicate {
+            source_id,
+            target_id,
+            name,
+        } => mutate_profile(
+            |store| store.duplicate_profile(&source_id, &target_id, &name),
+            "Duplicated profile as Draft.",
+        ),
+        ProfilesCommand::Rename { id, name } => {
+            mutate_profile(|store| store.rename_profile(&id, &name), "Renamed profile.")
+        }
+        ProfilesCommand::Delete { id } => {
+            mutate_profile(|store| store.delete_profile(&id), "Deleted profile.")
+        }
         ProfilesCommand::Validate { files } => validate_portable_profiles(&files),
         ProfilesCommand::Import { files } => import_portable_profiles(&files),
         ProfilesCommand::Export { id, output } => export_portable_profile(&id, &output),
     }
+}
+
+fn mutate_profile(
+    operation: impl FnOnce(&ConfigStore) -> Result<Config, crate::storage::StoreError>,
+    message: &str,
+) -> Result<(), CliError> {
+    let store = ConfigStore::discover().map_err(CliError::Store)?;
+    operation(&store).map_err(CliError::Store)?;
+    println!("{message}");
+    Ok(())
 }
 
 fn validate_portable_profiles(files: &[PathBuf]) -> Result<(), CliError> {

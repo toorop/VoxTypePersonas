@@ -533,6 +533,23 @@ Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, ver
 - Validated the plugin manifest, QML syntax with `/usr/lib/qt6/bin/qmlformat`, and whitespace with `git diff --check`. The installed `qmllint` still reports its known unresolved Omarchy-module imports and did not finish within a 20-second local timeout, so it is not recorded as a passing check.
 - Copied the updated `Panel.qml` to the enabled user-owned development plugin and confirmed the repository and installed copies have the same SHA-256 hash. In this environment, the user must manually restart the Omarchy shell before a copied development-plugin change is reliably reflected in the live UI; do not treat file watching alone as sufficient visual-test deployment.
 
+### 2026-09-15 — Phase 12: profile-management engine contract (in progress)
+
+- Added atomic engine operations for `profiles create`, `profiles duplicate`, `profiles rename`, and `profiles delete`; each accepts only arguments and writes configuration through the existing private atomic persistence path.
+- Creation produces a Draft profile with a separate initial prompt. Duplication gives the new profile an independent prompt copy, so later prompt editing cannot mutate its source profile.
+- Deleting the active non-Raw profile safely selects Raw first. Deleting a profile removes its prompt only when no remaining profile references it. The mandatory Raw profile is protected from deletion and from reserved-ID creation.
+- Added storage coverage for creation, renaming, independent duplication, prompt cleanup on deletion, and Raw protection.
+- Ran `cargo fmt`, `cargo test --workspace`, and `git diff --check`; all checks passed with 50 unit tests and 12 integration tests.
+- The panel controls for creating, duplicating, renaming, and confirming deletion remain the next focused sub-step of Phase 12 item 2.
+
+### 2026-09-15 — Phase 12: Profiles management view (awaiting user validation)
+
+- Replaced the Profiles settings placeholder with a selectable list of local profiles. Each row shows its name and readiness state; Raw is explicitly labelled as the mandatory protected profile.
+- Selecting a profile reveals the intended management area. Selecting Raw explains that it cannot be renamed or deleted; selecting another profile reserves the area for the forthcoming create, duplicate, rename, and delete controls.
+- This is a visual-layout step only: it does not yet invoke the newly added engine mutation commands or modify configuration from the panel.
+- Validated QML syntax with `/usr/lib/qt6/bin/qmlformat`, the plugin manifest, and whitespace. Copied the updated `Panel.qml` to the enabled development plugin and confirmed matching SHA-256 hashes.
+- The user manually restarted the Omarchy shell and visually validated the view. Draft `Example` remains correctly unavailable in the compact active-profile selector, but is selectable in `Settings… > Profiles` for future management actions.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
