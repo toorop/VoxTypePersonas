@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, verified engine installation, rollback protection, and selected theme-tinted persona icon have been visually reviewed in a live Omarchy session. Phase 12 — extended settings panel — is next. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
+Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, verified engine installation, rollback protection, and selected theme-tinted persona icon have been visually reviewed in a live Omarchy session. The user has since removed the user-owned Omarchy development-plugin directory; reinstall the plugin from this repository before the next live UI test. Phase 12 — extended settings panel — is next. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
 
 ## Completed work
 
@@ -502,6 +502,37 @@ Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, ver
 - Documented the developer-only prerelease procedure, expected successful result, and cleanup commands in `docs/release-format.md`. The stable channel remains the default and never selects prereleases.
 - Reviewed the Phase 11 roadmap acceptance criteria against the transaction implementation, signed-artifact validation, automated checks, and live installation. They are satisfied. The next proposed step is Phase 12, only after user approval.
 
+### 2026-09-15 — Phase 12: anchored settings navigation (awaiting user validation)
+
+- Added a `Settings…` entry to the existing anchored profile selector. It opens an in-panel settings view and never launches a separate application.
+- Added the Phase 12 navigation structure with `Profiles`, `Prompts`, and `Providers` sections, plus a return action to the profile selector. The selected section is visually distinguished.
+- Kept profile selection, engine installation/update states, and Escape-to-close behavior unchanged. Closing the panel returns it to the compact selector for the next opening.
+- This focused first step intentionally adds no profile/prompt/provider form, no configuration mutation, and no Secret Service operation. Each section clearly identifies that its management UI is still pending.
+- Ran `omarchy plugin validate .`, `qmllint`, and `git diff --check`. The manifest validation and whitespace check passed; QML lint completed with the pre-existing unresolved Omarchy-module metadata warnings.
+- No live visual test was run during this implementation step because the user had removed `~/.config/omarchy/plugins/io.github.toorop.voxtype-personas`.
+
+### 2026-09-15 — Omarchy development-plugin reinstall
+
+- Recreated the user-owned development-plugin directory at `~/.config/omarchy/plugins/io.github.toorop.voxtype-personas` from the repository working tree, including the manifest, QML sources, persona icon, and embedded public OpenPGP keyring.
+- Confirmed the installed copy matches the repository files by SHA-256.
+- Restarted the Omarchy shell, rescanned plugins, and enabled `io.github.toorop.voxtype-personas` in the right bar section. Confirmed that `shell.json` contains the widget and that Omarchy reports it as enabled.
+- Validated the installed plugin manifest with `omarchy plugin validate ~/.config/omarchy/plugins/io.github.toorop.voxtype-personas`.
+- The widget is ready for iterative live UI testing; the next test should open `Settings…` and verify the Profiles, Prompts, Providers navigation and return action.
+
+### 2026-09-15 — Phase 12 UI review: profile selector direction
+
+- The user visually reviewed the anchored settings navigation and confirmed it is available for iterative testing.
+- The current compact profile selector is not an acceptable final interaction: replace the list of clickable profile rows with a proper compact selection control in a future approved Phase 12 step.
+- Preserve the existing eligibility rules in that control: Draft profiles remain visible but cannot be activated; Ready and Active profiles remain selectable; changing the selection must persist through the engine CLI.
+
+### 2026-09-15 — Phase 12: compact profile selector (awaiting user validation)
+
+- Replaced the compact selector's always-visible clickable profile list with a single select-style control that displays the active profile and opens a themed dropdown on click or keyboard activation.
+- The dropdown displays every profile with its readiness state. Draft rows are visually subdued, use the forbidden cursor, and report a fixed configuration-required message instead of invoking the engine. Ready and Active rows retain the existing persisted engine-CLI activation path.
+- While the dropdown owns focus, the enclosing panel keyboard catcher is suspended so its navigation shortcuts do not interfere with menu keys. Escape closes the dropdown first; closing the panel resets it to the compact selector view.
+- Validated the plugin manifest, QML syntax with `/usr/lib/qt6/bin/qmlformat`, and whitespace with `git diff --check`. The installed `qmllint` still reports its known unresolved Omarchy-module imports and did not finish within a 20-second local timeout, so it is not recorded as a passing check.
+- Copied the updated `Panel.qml` to the enabled user-owned development plugin and confirmed the repository and installed copies have the same SHA-256 hash. In this environment, the user must manually restart the Omarchy shell before a copied development-plugin change is reliably reflected in the live UI; do not treat file watching alone as sufficient visual-test deployment.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -546,7 +577,7 @@ Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, ver
 
 ## Next proposed step
 
-Begin Phase 11 only after explicit user approval. First define and review the release channel, embedded Minisign public key, archive naming, and version-comparison policy before adding any installation UI or downloading an engine asset.
+After the user approves continuation, begin Phase 12 — extended settings panel. Before any live Omarchy UI test, reinstall the plugin into `~/.config/omarchy/plugins/io.github.toorop.voxtype-personas`, because the user removed that development-plugin directory after Phase 11 validation.
 
 ## Commit and push status
 
