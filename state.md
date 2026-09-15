@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, verified engine installation, rollback protection, and selected theme-tinted persona icon have been visually reviewed in a live Omarchy session. The user has since removed the user-owned Omarchy development-plugin directory; reinstall the plugin from this repository before the next live UI test. Phase 12 — extended settings panel — is next. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
+Phases 0 through 11 are complete. Phase 12 is in progress: profile management and the contextual profile editor are implemented and visually reviewed; the safe profile-test action and provider-management UI remain. The enabled development plugin and development engine are installed locally. The user must manually restart the Omarchy shell after any future plugin deployment. The engine supports local Ollama, OpenAI-compatible remote providers, and native Anthropic/Gemini adapters with Secret Service-backed keys. No Voxtype integration or release tooling has been created.
 
 ## Completed work
 
@@ -617,6 +617,14 @@ Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, ver
 - Kept all profile mutation behavior intact while relabelling the primary action from `Edit prompt` to `Edit profile`. The contextual editor still retrieves and saves only that profile’s linked prompt today; provider and model selection remain intentionally unimplemented.
 - Validated QML formatting, plugin manifest, whitespace, and the Rust suite (52 unit tests and 15 integration tests). Deployed `Panel.qml` with a matching SHA-256 hash. The user must manually restart the Omarchy shell before validating the new flow.
 
+### 2026-09-15 — Session checkpoint: Phase 12 UI flow committed
+
+- The user visually validated the revised UI direction and paused further design work for now. Settings has persistent Profiles and Providers navigation; `Edit profile` opens a contextual editor with a return to Profiles, current system-instruction editing, and a reserved Model area.
+- Installed the `frontend-ui-ux` skill at `~/.codex/skills/frontend-ui-ux` and used its information hierarchy, control-state, keyboard-focus, typography, spacing, icon, and error/empty-state guidance within QML/Omarchy constraints.
+- Fixed the contextual navigation focus collision so only the selected section remains highlighted when `Edit profile` opens the editor.
+- Committed and pushed all implementation, UI, tests, and previous state records as `c39bc38` (`feat: add profile editing workflow`). At the checkpoint, `main` matches `origin/main` and the working tree was clean.
+- Next approved work: finish Phase 12 item 4 with a safe, non-dictation test action in the contextual profile editor; then begin item 5, provider creation and editing. Do not resume UI design changes unless the user asks.
+
 ## Decisions currently in force
 
 - Target: Omarchy on Linux only.
@@ -661,9 +669,10 @@ Phases 0 through 11 are complete. The Omarchy bar widget, anchored selector, ver
 
 ## Next proposed step
 
-After the user approves continuation, begin Phase 12 — extended settings panel. Before any live Omarchy UI test, reinstall the plugin into `~/.config/omarchy/plugins/io.github.toorop.voxtype-personas`, because the user removed that development-plugin directory after Phase 11 validation.
+After the user approves continuation, finish Phase 12 item 4: design and implement a safe, non-dictation test action in the contextual `Edit profile` view. Then proceed to Phase 12 item 5, provider creation and editing. The development plugin is already installed; deploy future QML changes to `~/.config/omarchy/plugins/io.github.toorop.voxtype-personas` and remind the user to manually restart the Omarchy shell before each live UI test.
 
 ## Commit and push status
 
 - Phase 0 repository baseline committed with message `chore: establish repository baseline`.
 - Phase 3 was pushed to `origin/main` as part of commit `9f36468`.
+- Phase 12 work through the contextual profile editor was committed and pushed as `c39bc38` (`feat: add profile editing workflow`).
