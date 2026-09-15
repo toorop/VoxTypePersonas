@@ -36,159 +36,175 @@ BarWidget {
     property string releaseCheckMode: ""
 
     readonly property string releaseApiUrl: {
-        var testTag = Quickshell.env("VOXTYPE_PERSONAS_TEST_RELEASE_TAG")
+        var testTag = Quickshell.env("VOXTYPE_PERSONAS_TEST_RELEASE_TAG");
         if (testTag)
-            return "https://api.github.com/repos/toorop/VoxTypePersonas/releases/tags/" + testTag
+            return "https://api.github.com/repos/toorop/VoxTypePersonas/releases/tags/" + testTag;
 
-        return "https://api.github.com/repos/toorop/VoxTypePersonas/releases/latest"
+        return "https://api.github.com/repos/toorop/VoxTypePersonas/releases/latest";
     }
 
     readonly property var installationSteps: [
-        { id: "preparing", label: "Preparing secure download" },
-        { id: "metadata", label: "Checking release information" },
-        { id: "downloading", label: "Downloading engine and verification files" },
-        { id: "signature", label: "Verifying release signature" },
-        { id: "checksum", label: "Verifying archive checksum" },
-        { id: "validating", label: "Extracting and validating engine" },
-        { id: "installing", label: "Installing engine" }
+        {
+            id: "preparing",
+            label: "Preparing secure download"
+        },
+        {
+            id: "metadata",
+            label: "Checking release information"
+        },
+        {
+            id: "downloading",
+            label: "Downloading engine and verification files"
+        },
+        {
+            id: "signature",
+            label: "Verifying release signature"
+        },
+        {
+            id: "checksum",
+            label: "Verifying archive checksum"
+        },
+        {
+            id: "validating",
+            label: "Extracting and validating engine"
+        },
+        {
+            id: "installing",
+            label: "Installing engine"
+        }
     ]
 
     readonly property string engineExecutable: {
-        var dataHome = Quickshell.env("XDG_DATA_HOME")
+        var dataHome = Quickshell.env("XDG_DATA_HOME");
         if (!dataHome)
-            dataHome = Quickshell.env("HOME") + "/.local/share"
+            dataHome = Quickshell.env("HOME") + "/.local/share";
 
-        return dataHome + "/voxtype-personas/bin/voxtype-personas"
+        return dataHome + "/voxtype-personas/bin/voxtype-personas";
     }
 
     readonly property string engineInstallRoot: {
-        var dataHome = Quickshell.env("XDG_DATA_HOME")
+        var dataHome = Quickshell.env("XDG_DATA_HOME");
         if (!dataHome)
-            dataHome = Quickshell.env("HOME") + "/.local/share"
+            dataHome = Quickshell.env("HOME") + "/.local/share";
 
-        return dataHome + "/voxtype-personas"
+        return dataHome + "/voxtype-personas";
     }
 
     readonly property string releasePublicKeyPath: {
-        var url = String(Qt.resolvedUrl("assets/keys/release-signing.gpg"))
-        return decodeURIComponent(url.replace(/^file:\/\//, ""))
+        var url = String(Qt.resolvedUrl("assets/keys/release-signing.gpg"));
+        return decodeURIComponent(url.replace(/^file:\/\//, ""));
     }
 
-    readonly property bool opened: panelLoader.item
-        ? panelLoader.item.opened === true
-        : false
-    readonly property bool popoutSwitchClosing: panelLoader.item
-        ? panelLoader.item.popoutSwitchClosing === true
-        : false
+    readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+    readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
 
     function open() {
         if (panelLoader.item)
-            panelLoader.item.open()
+            panelLoader.item.open();
     }
 
     function close() {
         if (panelLoader.item)
-            panelLoader.item.close()
+            panelLoader.item.close();
     }
 
     function toggle() {
         if (panelLoader.item)
-            panelLoader.item.toggle()
+            panelLoader.item.toggle();
     }
 
     function closeForPopoutSwitch() {
         if (panelLoader.item)
-            panelLoader.item.closeForPopoutSwitch()
+            panelLoader.item.closeForPopoutSwitch();
     }
 
     function injectPanel() {
         if (!panelLoader.item)
-            return
-
-        panelLoader.item.bar = root.bar
-        panelLoader.item.anchorItem = button
-        panelLoader.item.hostWidget = root
-        panelLoader.item.profileEntries = root.profileEntries
-        panelLoader.item.profileError = root.profileError
-        panelLoader.item.engineAvailable = root.engineAvailable
-        panelLoader.item.engineStatus = root.engineStatus
-        panelLoader.item.engineVersion = root.engineVersion
-        panelLoader.item.installationStage = root.installationStage
-        panelLoader.item.installationError = root.installationError
-        panelLoader.item.installationSteps = root.installationSteps
-        panelLoader.item.installationTransactionReady = root.installationTransactionReady
-        panelLoader.item.updateAvailable = root.updateAvailable
+            return;
+        panelLoader.item.bar = root.bar;
+        panelLoader.item.anchorItem = button;
+        panelLoader.item.hostWidget = root;
+        panelLoader.item.profileEntries = root.profileEntries;
+        panelLoader.item.profileError = root.profileError;
+        panelLoader.item.engineAvailable = root.engineAvailable;
+        panelLoader.item.engineStatus = root.engineStatus;
+        panelLoader.item.engineVersion = root.engineVersion;
+        panelLoader.item.installationStage = root.installationStage;
+        panelLoader.item.installationError = root.installationError;
+        panelLoader.item.installationSteps = root.installationSteps;
+        panelLoader.item.installationTransactionReady = root.installationTransactionReady;
+        panelLoader.item.updateAvailable = root.updateAvailable;
     }
 
     function refreshProfile() {
         if (root.engineAvailable && !profileProcess.running)
-            profileProcess.running = true
+            profileProcess.running = true;
     }
 
     function resetUnavailableEngine(status) {
-        root.profileLabel = "Unavailable"
-        root.profileError = "The VoxTypePersonas engine is unavailable."
-        root.profileEntries = []
-        root.engineAvailable = false
-        root.engineVersion = ""
-        root.engineStatus = status
-        root.injectPanel()
+        root.profileLabel = "Unavailable";
+        root.profileError = "The VoxTypePersonas engine is unavailable.";
+        root.profileEntries = [];
+        root.engineAvailable = false;
+        root.engineVersion = "";
+        root.engineStatus = status;
+        root.injectPanel();
     }
 
     function beginEngineInstallation() {
         if (releaseProbe.running || engineInstaller.running)
-            return
-        root.installationStage = "metadata"
-        root.installationError = ""
-        root.releaseCheckMode = "install"
-        releaseProbe.running = true
-        root.injectPanel()
+            return;
+        root.installationStage = "metadata";
+        root.installationError = "";
+        root.releaseCheckMode = "install";
+        releaseProbe.running = true;
+        root.injectPanel();
     }
 
     function checkForUpdate() {
         if (releaseProbe.running)
-            return
-        root.releaseCheckMode = "update"
-        releaseProbe.running = true
+            return;
+        root.releaseCheckMode = "update";
+        releaseProbe.running = true;
     }
 
     function isNewerVersion(candidate, installed) {
-        var next = candidate.replace(/^v/, "").split(".")
-        var current = installed.replace(/^v/, "").split(".")
+        var next = candidate.replace(/^v/, "").split(".");
+        var current = installed.replace(/^v/, "").split(".");
         for (var index = 0; index < 3; index++) {
-            var difference = Number(next[index]) - Number(current[index])
+            var difference = Number(next[index]) - Number(current[index]);
             if (difference !== 0)
-                return difference > 0
+                return difference > 0;
         }
-        return false
+        return false;
     }
 
     function clearEngineInstallationStatus() {
-        root.installationStage = ""
-        root.installationError = ""
-        root.injectPanel()
+        root.installationStage = "";
+        root.installationError = "";
+        root.injectPanel();
     }
 
     function validReleaseTag(tag) {
-        var testTag = Quickshell.env("VOXTYPE_PERSONAS_TEST_RELEASE_TAG")
+        var testTag = Quickshell.env("VOXTYPE_PERSONAS_TEST_RELEASE_TAG");
         if (testTag)
-            return tag === testTag && /^v?[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$/.test(tag)
+            return tag === testTag && /^v?[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$/.test(tag);
 
-        return /^v?[0-9]+\.[0-9]+\.[0-9]+$/.test(tag)
+        return /^v?[0-9]+\.[0-9]+\.[0-9]+$/.test(tag);
     }
 
     function installationStageFor(stage) {
         if (stage.startsWith("downloading"))
-            return "downloading"
+            return "downloading";
         if (stage === "signature")
-            return "signature"
+            return "signature";
         if (stage === "checksum" || stage === "reading-manifest")
-            return "checksum"
+            return "checksum";
         if (stage === "installing" || stage === "staging" || stage.startsWith("promoting") || stage === "preserving")
-            return "installing"
+            return "installing";
         if (stage.startsWith("validating") || stage === "extracting")
-            return "validating"
-        return stage
+            return "validating";
+        return stage;
     }
 
     GpgVerifier {
@@ -197,8 +213,8 @@ BarWidget {
         publicKeyPath: root.releasePublicKeyPath
 
         onVerificationFailed: {
-            root.installationError = errorMessage
-            root.injectPanel()
+            root.installationError = errorMessage;
+            root.injectPanel();
         }
     }
 
@@ -213,21 +229,21 @@ BarWidget {
         allowPrereleaseTest: Boolean(Quickshell.env("VOXTYPE_PERSONAS_TEST_RELEASE_TAG"))
         downloadBaseUrl: root.selectedReleaseDownloadUrl
 
-        onProgress: function(stage) {
-            root.installationStage = root.installationStageFor(stage)
-            root.injectPanel()
+        onProgress: function (stage) {
+            root.installationStage = root.installationStageFor(stage);
+            root.injectPanel();
         }
         onSucceeded: {
-            root.installationStage = ""
-            root.installationError = ""
-            versionProcess.command = [root.engineExecutable, "version"]
-            versionProcess.running = true
-            root.injectPanel()
+            root.installationStage = "";
+            root.installationError = "";
+            versionProcess.command = [root.engineExecutable, "version"];
+            versionProcess.running = true;
+            root.injectPanel();
         }
-        onFailed: function(message) {
-            root.installationStage = ""
-            root.installationError = message
-            root.injectPanel()
+        onFailed: function (message) {
+            root.installationStage = "";
+            root.installationError = message;
+            root.injectPanel();
         }
     }
 
@@ -242,116 +258,112 @@ BarWidget {
             onStreamFinished: root.releaseMetadata = text
         }
 
-        onExited: function(exitCode, exitStatus) {
+        onExited: function (exitCode, exitStatus) {
             if (exitCode !== 0) {
                 if (root.releaseCheckMode === "update") {
-                    root.releaseCheckMode = ""
-                    return
+                    root.releaseCheckMode = "";
+                    return;
                 }
-                root.installationStage = ""
-                root.installationError = "No stable engine release is available yet."
-                root.injectPanel()
-                return
+                root.installationStage = "";
+                root.installationError = "No stable engine release is available yet.";
+                root.injectPanel();
+                return;
             }
 
-            var match = root.releaseMetadata.match(/"tag_name"\s*:\s*"([^"]+)"/)
+            var match = root.releaseMetadata.match(/"tag_name"\s*:\s*"([^"]+)"/);
             if (!match || !root.validReleaseTag(match[1])) {
                 if (root.releaseCheckMode === "update") {
-                    root.releaseCheckMode = ""
-                    return
+                    root.releaseCheckMode = "";
+                    return;
                 }
-                root.installationStage = ""
-                root.installationError = "The published release information is invalid."
-                root.injectPanel()
-                return
+                root.installationStage = "";
+                root.installationError = "The published release information is invalid.";
+                root.injectPanel();
+                return;
             }
 
             if (root.releaseCheckMode === "update") {
-                root.updateAvailable = root.isNewerVersion(match[1], root.engineVersion)
-                root.releaseCheckMode = ""
+                root.updateAvailable = root.isNewerVersion(match[1], root.engineVersion);
+                root.releaseCheckMode = "";
                 if (root.updateAvailable && !updateNotification.running)
-                    updateNotification.running = true
-                root.injectPanel()
-                return
+                    updateNotification.running = true;
+                root.injectPanel();
+                return;
             }
 
-            root.selectedReleaseTag = match[1]
-            root.selectedReleaseDownloadUrl = "https://github.com/toorop/VoxTypePersonas/releases/download/"
-                + root.selectedReleaseTag + "/"
-            root.releaseCheckMode = ""
-            engineInstaller.start()
+            root.selectedReleaseTag = match[1];
+            root.selectedReleaseDownloadUrl = "https://github.com/toorop/VoxTypePersonas/releases/download/" + root.selectedReleaseTag + "/";
+            root.releaseCheckMode = "";
+            engineInstaller.start();
         }
     }
 
-
     function detectArchitecture(output) {
-        var machine = String(output || "").trim()
+        var machine = String(output || "").trim();
         if (machine === "x86_64" || machine === "aarch64") {
-            root.hostArchitecture = machine
-            versionProcess.command = [root.engineExecutable, "version"]
-            versionProcess.running = true
-            return
+            root.hostArchitecture = machine;
+            versionProcess.command = [root.engineExecutable, "version"];
+            versionProcess.running = true;
+            return;
         }
 
-        root.resetUnavailableEngine("unsupported-architecture")
+        root.resetUnavailableEngine("unsupported-architecture");
     }
 
     function detectInstalledEngine(output) {
-        var version = String(output || "").trim()
+        var version = String(output || "").trim();
         if (!/^v?[0-9]+\.[0-9]+\.[0-9]+$/.test(version)) {
-            root.resetUnavailableEngine("invalid")
-            return
+            root.resetUnavailableEngine("invalid");
+            return;
         }
 
-        root.engineVersion = version.startsWith("v") ? version.slice(1) : version
-        root.engineStatus = "installed"
-        root.engineAvailable = true
-        root.refreshProfile()
-        root.checkForUpdate()
-        root.injectPanel()
+        root.engineVersion = version.startsWith("v") ? version.slice(1) : version;
+        root.engineStatus = "installed";
+        root.engineAvailable = true;
+        root.refreshProfile();
+        root.checkForUpdate();
+        root.injectPanel();
     }
 
     function applyProfileList(output) {
         // Preserve each row's two-character active marker. Trimming the
         // complete output would strip the marker from the first inactive row.
-        var lines = String(output || "").split("\n")
-        var entries = []
-        var hasActiveProfile = false
+        var lines = String(output || "").split("\n");
+        var entries = [];
+        var hasActiveProfile = false;
 
-        root.profileError = ""
-        root.engineAvailable = true
+        root.profileError = "";
+        root.engineAvailable = true;
 
         for (var index = 0; index < lines.length; index++) {
-            var line = lines[index]
+            var line = lines[index];
             if (line.trim().length === 0)
-                continue
-
-            var active = line.startsWith("* ")
-            var fields = line.slice(2).split("\t")
+                continue;
+            var active = line.startsWith("* ");
+            var fields = line.slice(2).split("\t");
             if (fields.length < 3 || fields[0].trim() === "" || fields[1].trim() === "")
-                continue
-
+                continue;
             entries.push({
                 id: fields[0].trim(),
                 name: fields[1].trim(),
                 state: fields[2].trim(),
+                promptId: fields.length >= 4 ? fields[3].trim() : "",
                 active: active
-            })
+            });
 
             if (!active)
-                continue
-
-            root.profileLabel = fields[1].trim()
-            root.profileError = ""
-            hasActiveProfile = true
+                continue;
+            root.profileLabel = fields[1].trim();
+            root.profileError = "";
+            hasActiveProfile = true;
         }
 
-        root.profileEntries = entries
+        root.profileEntries = entries;
         if (!hasActiveProfile) {
-            root.profileLabel = "Unavailable"
-            root.profileError = "No active profile is available."
+            root.profileLabel = "Unavailable";
+            root.profileError = "No active profile is available.";
         }
-        root.injectPanel()
+        root.injectPanel();
     }
 
     implicitWidth: button.implicitWidth
@@ -371,13 +383,13 @@ BarWidget {
             onStreamFinished: root.architectureOutput = text
         }
 
-        onExited: function(exitCode, exitStatus) {
+        onExited: function (exitCode, exitStatus) {
             if (exitCode !== 0) {
-                root.resetUnavailableEngine("unsupported-architecture")
-                return
+                root.resetUnavailableEngine("unsupported-architecture");
+                return;
             }
 
-            root.detectArchitecture(root.architectureOutput)
+            root.detectArchitecture(root.architectureOutput);
         }
     }
 
@@ -391,13 +403,13 @@ BarWidget {
             onStreamFinished: root.versionOutput = text
         }
 
-        onExited: function(exitCode, exitStatus) {
+        onExited: function (exitCode, exitStatus) {
             if (exitCode !== 0) {
-                root.resetUnavailableEngine("invalid")
-                return
+                root.resetUnavailableEngine("invalid");
+                return;
             }
 
-            root.detectInstalledEngine(root.versionOutput)
+            root.detectInstalledEngine(root.versionOutput);
         }
     }
 
@@ -412,14 +424,13 @@ BarWidget {
             onStreamFinished: root.applyProfileList(text)
         }
 
-        onExited: function(exitCode, exitStatus) {
+        onExited: function (exitCode, exitStatus) {
             if (exitCode === 0)
-                return
-
-            root.profileLabel = "Unavailable"
-            root.profileError = "The VoxTypePersonas configuration is unavailable."
-            root.profileEntries = []
-            root.injectPanel()
+                return;
+            root.profileLabel = "Unavailable";
+            root.profileError = "The VoxTypePersonas configuration is unavailable.";
+            root.profileEntries = [];
+            root.injectPanel();
         }
     }
 
@@ -438,8 +449,8 @@ BarWidget {
         visible: false
 
         onLoaded: {
-            root.injectPanel()
-            Qt.callLater(root.injectPanel)
+            root.injectPanel();
+            Qt.callLater(root.injectPanel);
         }
     }
 
@@ -465,21 +476,15 @@ BarWidget {
                     anchors.fill: personaIconSource
                     source: personaIconSource
                     colorization: 1.0
-                    colorizationColor: root.engineAvailable
-                        ? (root.updateAvailable
-                            ? (root.bar ? root.bar.urgent : Color.urgent)
-                            : (root.bar ? root.bar.barForeground : Color.foreground))
-                        : (root.bar ? root.bar.urgent : Color.urgent)
+                    colorizationColor: root.engineAvailable ? (root.updateAvailable ? (root.bar ? root.bar.urgent : Color.urgent) : (root.bar ? root.bar.barForeground : Color.foreground)) : (root.bar ? root.bar.urgent : Color.urgent)
                 }
             }
         }
-        tooltipText: root.engineAvailable
-            ? "VoxTypePersonas: " + root.profileLabel
-            : "VoxTypePersonas"
+        tooltipText: root.engineAvailable ? "VoxTypePersonas: " + root.profileLabel : "VoxTypePersonas"
 
-        onPressed: function(buttonCode) {
+        onPressed: function (buttonCode) {
             if (buttonCode === Qt.LeftButton)
-                root.toggle()
+                root.toggle();
         }
     }
 }

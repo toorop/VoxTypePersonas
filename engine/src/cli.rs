@@ -9,7 +9,7 @@ use crate::secrets::{SecretRef, SecretServiceStore, SecretStore};
 use crate::storage::ConfigStore;
 use clap::{Args, Parser, Subcommand};
 use std::fs::{self, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{self, BufRead, Read, Write};
 use std::path::PathBuf;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -26,6 +26,7 @@ enum Command {
     Version,
     Process(ProcessArgs),
     Profiles(ProfilesArgs),
+    Prompts(PromptsArgs),
     Providers(ProvidersArgs),
     Config(ConfigArgs),
 }
@@ -40,6 +41,25 @@ struct ProcessArgs {
 struct ProfilesArgs {
     #[command(subcommand)]
     command: ProfilesCommand,
+}
+
+#[derive(Debug, Args)]
+struct PromptsArgs {
+    #[command(subcommand)]
+    command: PromptsCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum PromptsCommand {
+    List,
+    Get {
+        id: String,
+    },
+    Set {
+        id: String,
+        #[arg(long)]
+        json_stdin: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -126,10 +146,52 @@ fn run_from(cli: Cli) -> Result<(), CliError> {
         }) => validate(args),
         Command::Process(args) => process(args),
         Command::Profiles(ProfilesArgs { command }) => profiles(command),
+        Command::Prompts(PromptsArgs { command }) => prompts(command),
         Command::Providers(ProvidersArgs {
             command: ProvidersCommand::Test { id },
         }) => provider_test(&id),
     }
+}
+
+fn prompts(command: PromptsCommand) -> Result<(), CliError> {
+    let store = ConfigStore::discover().map_err(CliError::Store)?;
+    match command {
+        PromptsCommand::List => {
+            let config = store.load_or_create().map_err(CliError::Store)?;
+            for id in config.prompts.keys() {
+                println!("{id}");
+            }
+        }
+        PromptsCommand::Get { id } => {
+            let config = store.load_or_create().map_err(CliError::Store)?;
+            print!(
+                "{}",
+                config
+                    .prompts
+                    .get(&id)
+                    .ok_or(CliError::UnknownPrompt)?
+                    .system
+            );
+        }
+        PromptsCommand::Set { id, json_stdin } => {
+            let system = if json_stdin {
+                let mut line = String::new();
+                io::stdin()
+                    .lock()
+                    .read_line(&mut line)
+                    .map_err(CliError::ReadInput)?;
+                serde_json::from_str(&line).map_err(CliError::InvalidPromptInput)?
+            } else {
+                let mut system = String::new();
+                io::stdin()
+                    .read_to_string(&mut system)
+                    .map_err(CliError::ReadInput)?;
+                system
+            };
+            store.update_prompt(&id, &system).map_err(CliError::Store)?;
+        }
+    }
+    Ok(())
 }
 
 fn provider_test(id: &str) -> Result<(), CliError> {
@@ -308,7 +370,12 @@ fn profiles(command: ProfilesCommand) -> Result<(), CliError> {
                 } else {
                     " "
                 };
-                println!("{marker} {id}\t{}\t{}", profile.name, state.label());
+                println!(
+                    "{marker} {id}\t{}\t{}\t{}",
+                    profile.name,
+                    state.label(),
+                    profile.prompt.as_deref().unwrap_or("")
+                );
             }
             Ok(())
         }
@@ -416,6 +483,8 @@ pub enum CliError {
     ReadInput(io::Error),
     WriteOutput(io::Error),
     UnknownProfile,
+    UnknownPrompt,
+    InvalidPromptInput(serde_json::Error),
     ReadConfig {
         path: PathBuf,
         source: std::io::Error,
@@ -443,6 +512,8 @@ impl std::fmt::Display for CliError {
                 write!(formatter, "could not write standard output: {error}")
             }
             Self::UnknownProfile => write!(formatter, "the requested profile does not exist"),
+            Self::UnknownPrompt => write!(formatter, "the requested prompt does not exist"),
+            Self::InvalidPromptInput(_) => write!(formatter, "could not read the prompt input"),
             Self::ReadConfig { path, source } => {
                 write!(
                     formatter,

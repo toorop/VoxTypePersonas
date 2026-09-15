@@ -217,6 +217,18 @@ impl ConfigStore {
         Ok(config)
     }
 
+    pub fn update_prompt(&self, id: &str, system: &str) -> Result<Config, StoreError> {
+        let mut config = self.load_or_create()?;
+        let prompt = config
+            .prompts
+            .get_mut(id)
+            .ok_or(StoreError::UnknownPrompt)?;
+        prompt.system = system.to_owned();
+        config.validate()?;
+        self.write_atomically(&config)?;
+        Ok(config)
+    }
+
     fn load_source(&self, source: &str) -> Result<Config, StoreError> {
         let schema_version = read_schema_version(source)?;
         match schema_version {
@@ -404,6 +416,7 @@ pub enum StoreError {
     InvalidProfileReference,
     InvalidProfileName,
     ProfileNameAlreadyExists(String),
+    UnknownPrompt,
     SecretVerification(SecretError),
     InvalidConfigPath(PathBuf),
     CreateBackup { path: PathBuf, source: io::Error },
@@ -486,6 +499,7 @@ impl std::fmt::Display for StoreError {
             Self::ProfileNameAlreadyExists(name) => {
                 write!(formatter, "profile name '{name}' already exists")
             }
+            Self::UnknownPrompt => write!(formatter, "the requested prompt does not exist"),
             Self::SecretVerification(error) => {
                 write!(formatter, "could not verify the provider key: {error}")
             }

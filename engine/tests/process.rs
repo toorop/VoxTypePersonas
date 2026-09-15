@@ -74,8 +74,54 @@ fn profiles_list_exposes_draft_ready_and_active_state() {
     assert!(output.status.success());
     assert_eq!(
         String::from_utf8(output.stdout).expect("profile list should be UTF-8"),
-        "  example\tExample profile\tDraft\n* raw\tRaw\tActive\n"
+        "  example\tExample profile\tDraft\texample\n* raw\tRaw\tActive\t\n"
     );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn prompt_update_reads_the_prompt_from_standard_input() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+    let updated = b"Keep wording concise.\n";
+
+    let set = run_process(&root, &["prompts", "set", "example"], updated);
+    assert!(set.status.success());
+    assert!(set.stdout.is_empty());
+    assert!(set.stderr.is_empty());
+
+    let get = run_process(&root, &["prompts", "get", "example"], b"");
+    assert!(get.status.success());
+    assert_eq!(get.stdout, updated);
+    assert!(get.stderr.is_empty());
+}
+
+#[test]
+fn prompt_update_accepts_a_multiline_json_input_without_waiting_for_eof() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+    let json_input = b"\"Keep the first line.\\nKeep the second line.\"\n";
+
+    let set = run_process(
+        &root,
+        &["prompts", "set", "example", "--json-stdin"],
+        json_input,
+    );
+    assert!(set.status.success());
+    assert!(set.stdout.is_empty());
+    assert!(set.stderr.is_empty());
+
+    let get = run_process(&root, &["prompts", "get", "example"], b"");
+    assert!(get.status.success());
+    assert_eq!(get.stdout, b"Keep the first line.\nKeep the second line.");
+}
+
+#[test]
+fn prompts_list_exposes_only_stable_prompt_ids() {
+    let root = tempfile::tempdir().expect("temporary XDG root should exist");
+
+    let output = run_process(&root, &["prompts", "list"], b"");
+
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"example\n");
     assert!(output.stderr.is_empty());
 }
 
